@@ -23,10 +23,11 @@ public class TransactionService()
         string fileName,
         string contentType,
         List<ResolvedInput> inputs,
-        ProtocolParams protocolParams
+        ProtocolParams protocolParams,
+        string revenueAddress
     )
     {
-        int _maxTxSize = (int)(protocolParams.MaxTransactionSize ?? 16384);
+        int _maxTxSize = (int)(protocolParams.MaxTransactionSize ?? 16384) - 107;
         Transaction initialTx = UploadFileTxBuilder(address, file, fileName, contentType, "", inputs, protocolParams, true, HashUtil.Blake2b256(file));
         byte[] initialTxCborBytes = CborSerializer.Serialize(initialTx);
         int initialTxSize = initialTxCborBytes.Length;
@@ -36,7 +37,7 @@ public class TransactionService()
             return [initialTx];
         }
 
-        int splitCount = (int)Math.Ceiling((double)initialTxSize / _maxTxSize);
+        int splitCount = (int)Math.Ceiling((double)initialTxSize / _maxTxSize) + 1; // 52.9 53
 
         List<byte[]> fileChunks = SplitFile(file, splitCount);
         fileChunks.Reverse();
@@ -48,9 +49,9 @@ public class TransactionService()
         foreach (byte[] chunk in fileChunks)
         {
             bool isLastChunk = index == fileChunks.Count - 1;
-            
+
             PostMaryTransaction chunkTx = (PostMaryTransaction)UploadFileTxBuilder(
-                address,
+                isLastChunk ? revenueAddress : address,
                 chunk,
                 fileName,
                 contentType,
@@ -73,6 +74,16 @@ public class TransactionService()
         }
 
         return transactions;
+    }
+
+    public ulong CalculateFee(
+        int fileSize,
+        ulong revenueFee
+    )
+    {
+        decimal splitCount = Math.Ceiling((decimal)fileSize / 16384);
+
+        return (ulong)(splitCount * 900000 + revenueFee);
     }
 
     private static Transaction UploadFileTxBuilder(
@@ -135,7 +146,6 @@ public class TransactionService()
                 { 6673, new MetadatumMap(metadata) }
             });
 
-        
         PostAlonzoAuxiliaryDataMap auxData = new(labeledMetadata, null, null, null, null);
         txBuilder.SetAuxiliaryData(auxData);
         byte[] auxDataCborBytes = CborSerializer.Serialize(auxData);

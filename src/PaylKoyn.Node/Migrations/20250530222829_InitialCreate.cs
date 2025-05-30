@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace PaylKoyn.Data.Migrations
+namespace PaylKoyn.Node.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration

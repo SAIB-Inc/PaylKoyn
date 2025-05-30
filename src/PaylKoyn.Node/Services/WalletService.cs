@@ -1,19 +1,16 @@
-using Chrysalis.Tx.Models;
-using Chrysalis.Tx.Models.Cbor;
 using Chrysalis.Wallet.Models.Enums;
 using Chrysalis.Wallet.Models.Keys;
 using Chrysalis.Wallet.Words;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using PaylKoyn.Data.Models;
+using PaylKoyn.Node.Data;
 using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;
 
-namespace PaylKoyn.Data.Services;
+namespace PaylKoyn.Node.Services;
 
 public class WalletService(
     IConfiguration configuration,
-    IDbContextFactory<WalletDbContext> dbContextFactory,
-    ICardanoDataProvider cardanoDataProvider
+    IDbContextFactory<WalletDbContext> dbContextFactory
 )
 {
     private readonly string _seed = configuration["Seed"] ?? throw new ArgumentNullException("Seed is not configured");
@@ -87,16 +84,12 @@ public class WalletService(
         return await dbContext.Wallets.FirstOrDefaultAsync(w => w.Address == address);
     }
 
-    public async Task<(bool success, IEnumerable<ResolvedInput> utxos)> TryGetUtxosAsync(string address)
+    public async Task<PrivateKey?> GetPrivateKeyByAddressAsync(string address)
     {
-        try
-        {
-            var utxos = await cardanoDataProvider.GetUtxosAsync([address]);
-            return (utxos.Count != 0, utxos);
-        }
-        catch
-        {
-            return (false, Enumerable.Empty<ResolvedInput>());
-        }
+        Wallet? wallet = await GetWalletAsync(address);
+        if (wallet == null)
+            return null;
+
+        return GetPaymentPrivateKey(wallet.Index);
     }
 }
