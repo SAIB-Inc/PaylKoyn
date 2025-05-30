@@ -87,7 +87,6 @@ public class OutputBySlotReducer(
     )
     {
         resolvedInputs = resolvedInputs.Union(dbContext.OutputsBySlot.Local);
-        
         IEnumerable<(string spentTxHash, OutputBySlot resolvedInput)> resolvedInputsByTx = transactions
             .SelectMany(tx =>
             {
@@ -99,9 +98,9 @@ public class OutputBySlotReducer(
         IEnumerable<OutputBySlot> updatedOutputs = resolvedInputsByTx.Select(resolvedInputByTx =>
         {
             OutputBySlot? existingOutput = dbContext.OutputsBySlot.Local
-                .FirstOrDefault(e => e.OutRef == resolvedInputByTx.resolvedInput.OutRef && !string.IsNullOrEmpty(e.SpentTxHash));
+                .FirstOrDefault(e => e.OutRef == resolvedInputByTx.resolvedInput.OutRef);
 
-            if (existingOutput == null) return null;
+            if (existingOutput != null) return null;
 
             return resolvedInputByTx.resolvedInput with { SpentTxHash = resolvedInputByTx.spentTxHash };
         })
