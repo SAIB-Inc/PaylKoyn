@@ -86,8 +86,8 @@ public class OutputBySlotReducer(
         PaylKoynDbContext dbContext
     )
     {
-        Dictionary<string, OutputBySlot> tracked = dbContext.OutputsBySlot.Local.ToDictionary(e => e.OutRef);
-
+        resolvedInputs = resolvedInputs.Union(dbContext.OutputsBySlot.Local);
+        
         IEnumerable<(string spentTxHash, OutputBySlot resolvedInput)> resolvedInputsByTx = transactions
             .SelectMany(tx =>
             {
@@ -98,8 +98,9 @@ public class OutputBySlotReducer(
 
         IEnumerable<OutputBySlot> updatedOutputs = resolvedInputsByTx.Select(resolvedInputByTx =>
         {
-            var existingOutput = dbContext.OutputsBySlot.Local
+            OutputBySlot? existingOutput = dbContext.OutputsBySlot.Local
                 .FirstOrDefault(e => e.OutRef == resolvedInputByTx.resolvedInput.OutRef && !string.IsNullOrEmpty(e.SpentTxHash));
+
             if (existingOutput == null) return null;
 
             return resolvedInputByTx.resolvedInput with { SpentTxHash = resolvedInputByTx.spentTxHash };
