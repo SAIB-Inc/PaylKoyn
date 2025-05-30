@@ -27,7 +27,7 @@ public class TransactionService()
     )
     {
         int _maxTxSize = (int)(protocolParams.MaxTransactionSize ?? 16384);
-        Transaction initialTx = UploadFileTxBuilder(address, file, fileName, contentType, "", inputs, protocolParams, true);
+        Transaction initialTx = UploadFileTxBuilder(address, file, fileName, contentType, "", inputs, protocolParams, true, []);
         byte[] initialTxCborBytes = CborSerializer.Serialize(initialTx);
         int initialTxSize = initialTxCborBytes.Length;
 
@@ -128,7 +128,6 @@ public class TransactionService()
         {
             metadata.Add(new MetadataText("checksum"), new MetadatumBytes(checksum!));
         }
-       
 
         Metadata labeledMetadata = new(
             new Dictionary<ulong, TransactionMetadatum>
@@ -136,6 +135,7 @@ public class TransactionService()
                 { 6673, new MetadatumMap(metadata) }
             });
 
+        
         PostAlonzoAuxiliaryDataMap auxData = new(labeledMetadata, null, null, null, null);
         txBuilder.SetAuxiliaryData(auxData);
         byte[] auxDataCborBytes = CborSerializer.Serialize(auxData);
