@@ -12,6 +12,8 @@ public class PaylKoynDbContext(
 {
     public DbSet<TransactionBySlot> TransactionsBySlot => Set<TransactionBySlot>();
 
+    public DbSet<OutputBySlot> OutputsBySlot => Set<OutputBySlot>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -19,6 +21,11 @@ public class PaylKoynDbContext(
         modelBuilder.Entity<TransactionBySlot>(entity =>
         {
             entity.HasKey(e => e.Hash);
+        });
+
+        modelBuilder.Entity<OutputBySlot>(entity =>
+        {
+            entity.HasKey(e => e.OutRef);
         });
     }
 }

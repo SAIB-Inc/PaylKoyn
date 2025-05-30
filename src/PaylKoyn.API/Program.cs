@@ -3,7 +3,29 @@ using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models;
 using Scalar.AspNetCore;
 
-WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOpenApi();
+builder.Services.AddFastEndpoints();
+builder.Services.AddDbContextFactory<PaylKoynDbContext>(options =>
+{
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("CardanoContext"),
+        x => x.MigrationsHistoryTable(
+            "__EFMigrationsHistory",
+            builder.Configuration.GetConnectionString("CardanoContextSchema")
+        )
+    );
+});
+
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapScalarApiReference();
+    app.MapOpenApi();
+    app.UseFastEndpoints();
+}
 
 builder.Services.AddOpenApi();
 builder.Services.AddHttpClient();
