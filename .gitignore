@@ -1,2 +1,6 @@
-obj
-bin
+**/appsettings.json
+**/appsettings.*.json
+**/bin
+**/obj
+**/node_modules
+**/dist
