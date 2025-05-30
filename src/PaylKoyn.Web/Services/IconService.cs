@@ -9,6 +9,11 @@ public class IconService(IWebHostEnvironment env)
     public string LoadingIcon => _cache.TryGetValue("loading.svg", out string? value) ? value : LoadIcon("loading.svg");
     public string QrIcon => _cache.TryGetValue("qr.svg", out string? value) ? value : LoadIcon("qr.svg");
     public string UploadIcon => _cache.TryGetValue("upload.svg", out string? value) ? value : LoadIcon("upload.svg");
+    public string XIcon => _cache.TryGetValue("x.svg", out string? value) ? value : LoadIcon("x.svg");
+    public string LinkedInIcon => _cache.TryGetValue("linkedin.svg", out string? value) ? value : LoadIcon("linkedin.svg");
+    public string FacebookIcon => _cache.TryGetValue("facebook.svg", out string? value) ? value : LoadIcon("facebook.svg");
+    public string GithubIcon => _cache.TryGetValue("github.svg", out string? value) ? value : LoadIcon("github.svg");
+
     public string LoadIcon(string iconName)
     {
         string iconPath = Path.Combine(env.WebRootPath, "images", "icons", iconName);

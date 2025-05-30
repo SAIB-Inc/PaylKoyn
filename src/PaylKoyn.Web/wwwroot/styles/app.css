@@ -1,2 +1,10 @@
 @config "../tailwind.config.js";
 @import "tailwindcss";
+
+main {
+    overflow: hidden;
+}
+
+.button-color-gradient {
+    background: linear-gradient(to right, #FF3BFF, #ECBFBF, #FF2BF1, #ECBFBF);
+  }
