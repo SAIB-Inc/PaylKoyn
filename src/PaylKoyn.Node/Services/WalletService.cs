@@ -86,17 +86,4 @@ public class WalletService(
         using WalletDbContext dbContext = dbContextFactory.CreateDbContext();
         return await dbContext.Wallets.FirstOrDefaultAsync(w => w.Address == address);
     }
-
-    public async Task<(bool success, IEnumerable<ResolvedInput> utxos)> TryGetUtxosAsync(string address)
-    {
-        try
-        {
-            var utxos = await cardanoDataProvider.GetUtxosAsync([address]);
-            return (utxos.Count != 0, utxos);
-        }
-        catch
-        {
-            return (false, Enumerable.Empty<ResolvedInput>());
-        }
-    }
 }

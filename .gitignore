@@ -10,3 +10,5 @@
 **/.env.local
 *.db
 **/dist
+**/*.db-shm
+**/*.db-wal
