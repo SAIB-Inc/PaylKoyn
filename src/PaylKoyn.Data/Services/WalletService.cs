@@ -66,6 +66,12 @@ public class WalletService(
         return wallet;
     }
 
+    public async Task<Wallet?> GetWalletAsync(string address)
+    {
+        using WalletDbContext dbContext = dbContextFactory.CreateDbContext();
+        return await dbContext.Wallets.FirstOrDefaultAsync(w => w.Address == address);
+    }
+
     public async Task<IEnumerable<ResolvedInput>> GetUtxosAsync(Wallet wallet)
     {
         try
