@@ -1,3 +1,4 @@
+using System.Text;
 using Chrysalis.Tx.Models;
 using Chrysalis.Tx.Providers;
 using Chrysalis.Wallet.Models.Keys;
@@ -16,6 +17,7 @@ builder.Services.AddDbContextFactory<WalletDbContext>(options =>
 
 builder.Services.AddSingleton<WalletService>();
 builder.Services.AddSingleton<FileService>();
+builder.Services.AddSingleton<TransactionService>();
 
 WebApplication app = builder.Build();
 
@@ -27,9 +29,11 @@ var seed = Mnemonic.Generate(English.Words, 24);
 Console.WriteLine(string.Join(" ", seed.Words));
 var fileService = app.Services.GetRequiredService<FileService>();
 var wallet = await fileService.RequestUploadAsync();
-var fileContent = new byte[] { 0x01, 0x02, 0x03 };
-var contentType = "application/octet-stream";
-var fileName = "testfile.bin";
+var fileContent = Encoding.ASCII.GetBytes(string.Join(",", Enumerable.Range(0, 20000).Select(i => "Hello, World!")));
+var fileContentSize = fileContent.Length;
+Console.WriteLine($"File content size: {fileContentSize} bytes");
+var contentType = "text/plain";
+var fileName = "testfile.txt";
 
 try
 {
