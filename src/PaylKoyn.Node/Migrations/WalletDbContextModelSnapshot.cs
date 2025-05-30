@@ -2,11 +2,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using PaylKoyn.Data.Models;
+using PaylKoyn.Node.Data;
 
 #nullable disable
 
-namespace PaylKoyn.Data.Migrations
+namespace PaylKoyn.Node.Migrations
 {
     [DbContext(typeof(WalletDbContext))]
     partial class WalletDbContextModelSnapshot : ModelSnapshot

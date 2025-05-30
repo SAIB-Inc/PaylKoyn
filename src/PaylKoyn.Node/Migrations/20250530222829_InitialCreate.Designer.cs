@@ -3,14 +3,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using PaylKoyn.Data.Models;
+using PaylKoyn.Node.Data;
 
 #nullable disable
 
-namespace PaylKoyn.Data.Migrations
+namespace PaylKoyn.Node.Migrations
 {
     [DbContext(typeof(WalletDbContext))]
-    [Migration("20250530160842_InitialCreate")]
+    [Migration("20250530222829_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
