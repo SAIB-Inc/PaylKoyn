@@ -27,7 +27,7 @@ public class TransactionService()
     )
     {
         int _maxTxSize = (int)(protocolParams.MaxTransactionSize ?? 16384);
-        Transaction initialTx = UploadFileTxBuilder(address, file, fileName, contentType, "", inputs, protocolParams, true, []);
+        Transaction initialTx = UploadFileTxBuilder(address, file, fileName, contentType, "", inputs, protocolParams, true, HashUtil.Blake2b256(file));
         byte[] initialTxCborBytes = CborSerializer.Serialize(initialTx);
         int initialTxSize = initialTxCborBytes.Length;
 
