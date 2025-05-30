@@ -76,13 +76,13 @@ public class TransactionService()
     }
 
     public ulong CalculateFee(
-        byte[] file
+        int fileSize,
+        ulong revenueFee
     )
     {
-        int fileSize = file.Length;
         decimal splitCount = Math.Ceiling((decimal)fileSize / 16384);
 
-        return (ulong)(splitCount * 900000);
+        return (ulong)(splitCount * 900000 + revenueFee);
     }
 
     private static Transaction UploadFileTxBuilder(
