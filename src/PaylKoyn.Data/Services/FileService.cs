@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Security.Cryptography.X509Certificates;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Common;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
 using Chrysalis.Tx.Models.Cbor;
@@ -54,8 +53,8 @@ public class FileService(
         Stopwatch stopwatch = Stopwatch.StartNew();
         while (stopwatch.Elapsed < _expirationTime)
         {
-            var utxos = await walletService.GetUtxosAsync(address);
-            if (utxos.Any()) return utxos;
+            (bool isSuccess, IEnumerable<ResolvedInput> utxos) = await walletService.TryGetUtxosAsync(address);
+            if (isSuccess) return utxos;
 
             logger.LogInformation("No UTXOs found for address: {Address}. Retrying in {Interval} seconds...", address, _getUtxosInterval.TotalSeconds);
             await Task.Delay(_getUtxosInterval);
