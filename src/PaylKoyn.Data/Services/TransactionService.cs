@@ -145,7 +145,6 @@ public class TransactionService()
                 { 6673, new MetadatumMap(metadata) }
             });
 
-
         PostAlonzoAuxiliaryDataMap auxData = new(labeledMetadata, null, null, null, null);
         txBuilder.SetAuxiliaryData(auxData);
         byte[] auxDataCborBytes = CborSerializer.Serialize(auxData);
