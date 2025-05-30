@@ -4,3 +4,9 @@
 **/obj
 **/node_modules
 **/dist
+
+.mono
+**/.env
+**/.env.local
+*.db
+**/dist
