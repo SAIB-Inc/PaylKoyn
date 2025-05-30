@@ -15,9 +15,7 @@ namespace PaylKoyn.Data.Migrations
                 columns: table => new
                 {
                     Address = table.Column<string>(type: "TEXT", nullable: false),
-                    Index = table.Column<int>(type: "INTEGER", nullable: false),
-                    Key = table.Column<byte[]>(type: "BLOB", nullable: false),
-                    ChainCode = table.Column<byte[]>(type: "BLOB", nullable: false)
+                    Index = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {

@@ -10,7 +10,7 @@ using PaylKoyn.Data.Models;
 namespace PaylKoyn.Data.Migrations
 {
     [DbContext(typeof(WalletDbContext))]
-    [Migration("20250530155006_InitialCreate")]
+    [Migration("20250530160842_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -24,16 +24,8 @@ namespace PaylKoyn.Data.Migrations
                     b.Property<string>("Address")
                         .HasColumnType("TEXT");
 
-                    b.Property<byte[]>("ChainCode")
-                        .IsRequired()
-                        .HasColumnType("BLOB");
-
                     b.Property<int>("Index")
                         .HasColumnType("INTEGER");
-
-                    b.Property<byte[]>("Key")
-                        .IsRequired()
-                        .HasColumnType("BLOB");
 
                     b.HasKey("Address");
 

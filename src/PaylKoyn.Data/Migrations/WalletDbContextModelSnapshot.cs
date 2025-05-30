@@ -21,16 +21,8 @@ namespace PaylKoyn.Data.Migrations
                     b.Property<string>("Address")
                         .HasColumnType("TEXT");
 
-                    b.Property<byte[]>("ChainCode")
-                        .IsRequired()
-                        .HasColumnType("BLOB");
-
                     b.Property<int>("Index")
                         .HasColumnType("INTEGER");
-
-                    b.Property<byte[]>("Key")
-                        .IsRequired()
-                        .HasColumnType("BLOB");
 
                     b.HasKey("Address");
 

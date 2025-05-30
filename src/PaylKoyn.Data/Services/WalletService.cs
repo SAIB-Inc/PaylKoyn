@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-using Chrysalis.Cbor.Types.Cardano.Core.Common;
 using Chrysalis.Tx.Models;
 using Chrysalis.Tx.Models.Cbor;
 using Chrysalis.Wallet.Models.Enums;
@@ -25,15 +23,8 @@ public class WalletService(
         _ => NetworkType.Testnet
     };
 
-    public async Task<Wallet> GenerateWalletAsync()
+    public WalletAddress GetWalletAddress(int index = 0)
     {
-        using WalletDbContext dbContext = dbContextFactory.CreateDbContext();
-
-        int index = await dbContext.Wallets
-            .Select(w => w.Index)
-            .OrderByDescending(i => i)
-            .FirstOrDefaultAsync() + 1;
-
         Mnemonic mnemonic = Mnemonic.Restore(_seed, English.Words);
         PrivateKey accountKey = mnemonic
             .GetRootKey()
@@ -51,8 +42,22 @@ public class WalletService(
         PublicKey skPub = stakePrivateKey.GetPublicKey();
 
         WalletAddress address = WalletAddress.FromPublicKeys(_networkType, AddressType.Base, pkPub, skPub);
+
+        return address;
+    }
+
+    public async Task<Wallet> GenerateWalletAsync()
+    {
+        using WalletDbContext dbContext = dbContextFactory.CreateDbContext();
+
+        int index = await dbContext.Wallets
+            .Select(w => w.Index)
+            .OrderByDescending(i => i)
+            .FirstOrDefaultAsync() + 1;
+
+        WalletAddress address = GetWalletAddress(index);
         string addressBech32 = address.ToBech32();
-        Wallet wallet = new(addressBech32, index, paymentPrivateKey.Key, paymentPrivateKey.Chaincode);
+        Wallet wallet = new(addressBech32, index);
 
         // Save the wallet to the database
         dbContext.Wallets.Add(wallet);
