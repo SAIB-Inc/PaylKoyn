@@ -5,6 +5,6 @@ namespace PaylKoyn.Data.Models.Entity;
 public record TransactionBySlot(
     string Hash,
     ulong Slot,
-    byte[] TxMetadatumRaw,
-    byte[] TxRaw
+    byte[] Metadata,
+    byte[] Body
 ) : IReducerModel;
