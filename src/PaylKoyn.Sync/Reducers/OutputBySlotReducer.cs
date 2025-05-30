@@ -40,6 +40,7 @@ public class OutputBySlotReducer(
             tx.Inputs().Select(input => $"{Convert.ToHexStringLower(input.TransactionId)}#{input.Index}"));
         
         IEnumerable<OutputBySlot> resolvedInputs = await dbContext.OutputsBySlot
+            .AsNoTracking()
             .Where(e => inputs.Contains(e.OutRef))
             .Where(obs => string.IsNullOrEmpty(obs.SpentTxHash))
             .ToListAsync();
@@ -97,14 +98,9 @@ public class OutputBySlotReducer(
 
         IEnumerable<OutputBySlot> updatedOutputs = resolvedInputsByTx.Select(resolvedInputByTx =>
         {
-            if (!tracked.TryGetValue(resolvedInputByTx.resolvedInput.OutRef, out OutputBySlot? outputBySlot))
-            {
-                return null;
-            }
-            if (!string.IsNullOrEmpty(outputBySlot.SpentTxHash))
-            {
-                return null;
-            }
+            var existingOutput = dbContext.OutputsBySlot.Local
+                .FirstOrDefault(e => e.OutRef == resolvedInputByTx.resolvedInput.OutRef && !string.IsNullOrEmpty(e.SpentTxHash));
+            if (existingOutput == null) return null;
 
             return resolvedInputByTx.resolvedInput with { SpentTxHash = resolvedInputByTx.spentTxHash };
         })
