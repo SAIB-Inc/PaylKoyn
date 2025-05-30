@@ -2,7 +2,11 @@
 
 @namespace PaylKoyn.Web.Components.Pages
 
-<section class="container h-screen mx-auto flex flex-col items-center justify-center gap-20 max-lg:hidden">
+<section class="container relative h-[calc(100vh-130px)] mx-auto flex flex-col items-center justify-center !gap-16 max-lg:hidden">
+    <div>
+        <MudImage Src="/images/background.svg" Alt="" class="absolute top-0 left-[-280px] -z-10"/>
+        <MudImage Src="/images/background.svg" Alt="" class="absolute absolute top-0 right-[-284px] -z-10 scale-x-[-1]"/>
+    </div>
     <div class="rounded-3xl bg-white w-full max-w-[1214px]">
         <div class="flex items-center gap-6 !p-6 !pb-4">
             <div class="border-2 border-[#CBD0DC] rounded-full !p-[17.5px]">
@@ -106,17 +110,17 @@
             }
         </div>
     </div>
-        <MudPaper 
-            Elevation="0"
-            Class="w-full  h-66 flex items-center justify-center !gap-12 !rounded-3xl !bg-[#EFF1FA]/20 !p-6 overflow-hidden"
-        >
-            @foreach (var file in FileList)
-            {
-                <div class="size-50">
-                    <img src="/images/nft/nft_payl_koyn_princess.jpg" alt="@file.Name"/>
-                </div>
-            }
-        </MudPaper>
+    <MudPaper 
+        Elevation="0"
+        Class="w-full  h-66 flex items-center justify-center !gap-12 !rounded-3xl !bg-[#EFF1FA]/20 !p-6 overflow-hidden"
+    >
+        @foreach (var file in FileList)
+        {
+            <div class="size-50">
+                <img src="/images/nft/nft_payl_koyn_princess.jpg" alt="@file.Name"/>
+            </div>
+        }
+    </MudPaper>
 </section>
 
 <section class="lg:hidden container mx-auto flex items-center justify-center h-screen !px-4">
