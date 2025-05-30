@@ -1,0 +1,53 @@
+using Argus.Sync.Reducers;
+using Chrysalis.Cbor.Extensions.Cardano.Core;
+using Chrysalis.Cbor.Extensions.Cardano.Core.Header;
+using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
+using Chrysalis.Cbor.Serialization;
+using Chrysalis.Cbor.Types.Cardano.Core;
+using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
+using Microsoft.EntityFrameworkCore;
+using PaylKoyn.Data.Models;
+using PaylKoyn.Data.Models.Entity;
+
+namespace PaylKoyn.Sync.Reducers;
+
+public class TransactionBySlotReducer(
+    IDbContextFactory<PaylKoynDbContext> dbContextFactory
+) : IReducer<TransactionBySlot>
+{
+    private readonly ulong _transactionMetadatumKey = 6673;
+
+    public async Task RollBackwardAsync(ulong slot)
+    {
+        await using PaylKoynDbContext dbContext = await dbContextFactory.CreateDbContextAsync();
+        await dbContext.TransactionsBySlot.Where(x => x.Slot >= slot).ExecuteDeleteAsync();
+    }
+
+    public async Task RollForwardAsync(Block block)
+    {
+        await using PaylKoynDbContext dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        IEnumerable<TransactionBody> transactions = block.TransactionBodies();
+        Dictionary<int, AuxiliaryData> auxiliaryData = block.AuxiliaryDataSet();
+        ulong currentSlot = block.Header().HeaderBody().Slot();
+
+        IEnumerable<TransactionBySlot> newEntries = transactions.Select((transaction, index) =>
+        {
+            AuxiliaryData? data = auxiliaryData.TryGetValue(index, out AuxiliaryData? auxData) ? auxData : null;
+            if (data is null) return null;
+
+            TransactionMetadatum? txMetadatum = data?.Metadata()?.Value().FirstOrDefault(e => e.Key == _transactionMetadatumKey).Value;
+            if (txMetadatum is null) return null;
+
+            return new TransactionBySlot(
+                Hash: transaction.Hash(),
+                Slot: currentSlot,
+                TxMetadatumRaw: CborSerializer.Serialize(txMetadatum),
+                TxRaw: CborSerializer.Serialize(transaction)
+            );
+        }).Where(x => x is not null)!;
+
+        dbContext.TransactionsBySlot.AddRange(newEntries);
+        await dbContext.SaveChangesAsync();
+    }
+}
