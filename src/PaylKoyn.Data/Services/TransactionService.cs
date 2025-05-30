@@ -80,7 +80,7 @@ public class TransactionService()
     )
     {
         int fileSize = file.Length;
-        decimal splitCount = Math.Ceiling((decimal)fileSize / 16);
+        decimal splitCount = Math.Ceiling((decimal)fileSize / 16384);
 
         return (ulong)(splitCount * 900000);
     }
