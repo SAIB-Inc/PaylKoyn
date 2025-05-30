@@ -12,7 +12,7 @@ public partial class MainLayout
         },
         PaletteLight = new()
         {
-            Background = "#FFFFFF"
+            Background = "#5438DC"
         }
     };
 }

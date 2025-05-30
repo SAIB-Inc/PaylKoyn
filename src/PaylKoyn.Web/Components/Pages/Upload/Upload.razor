@@ -1,0 +1,120 @@
+@page "/upload"
+
+@namespace PaylKoyn.Web.Components.Pages
+
+<section class="container h-screen mx-auto flex flex-col items-center justify-center gap-20">
+    <div class="rounded-3xl bg-white w-full max-w-[1214px]">
+        <div class="flex items-center gap-6 !p-6 !pb-4">
+            <div class="border-2 border-[#CBD0DC] rounded-full !p-[17.5px]">
+                <MudIcon Icon="@(!FileList!.Any() ? IconService.UploadIcon : IconService.QrIcon)" Class="!text-[35px]"/>
+            </div>
+            <div>
+                <MudText Class="text-[#292D32] !font-semibold !text-2xl">@(!FileList!.Any() ? "Upload Your Files" : "Scan QR Code")</MudText>
+                <MudText Class="text-[#A9ACB4] !font-medium !text-xl">
+                    @if (!FileList?.Any() ?? true)
+                    {
+                        <span>Select and upload the files of your choice</span>
+                    }
+                    else
+                    {
+                        <span class="!text-[#5438DC]">By using the service you will receive </span>
+                        <span class="!font-bold !text-[#5438DC]">$PAYL</span>
+                    }
+                </MudText>
+            </div>
+        </div>
+        <MudDivider Class="!border-[#CBD0DC]"/>
+        <div class="!p-6">
+            @if(!FileList!.Any())
+            {
+                <MudFileUpload
+                    T="IReadOnlyList<IBrowserFile>"
+                    Accept=".png, .jpg, .mp4, .mov"
+                    AppendMultipleFiles
+                    OnFilesChanged="OnInputFileChanged"
+                    Hidden="@false"
+                    InputClass="absolute w-full mud-width-full mud-height-full overflow-hidden z-10 !cursor-pointer"
+                    Class="w-full"
+                    InputStyle="opacity:0"
+                    @ondragenter="() => IsOnDragged = true"
+                    @ondragleave="() => IsOnDragged = false"
+                >
+                    <ActivatorContent>
+                        <MudPaper 
+                            Height="300px"
+                            Outlined="true"
+                            Class="bg-white! !border-2 !border-dashed !border-[#CBD0DC] flex flex-col items-center justify-center !gap-6"
+                        >
+                            <div>
+                                <MudIcon Icon="@IconService.UploadIcon" Class="!text-[46px]"/>
+                            </div>
+                            <div>
+                                <MudText Class="!text-[#292D32] !font-medium !text-2xl">Choose a file or drag & drop it here</MudText>
+                                <MudText Class="!text-[#A9ACB4] !font-medium !text-xl">JPEG, PNG, and MP4 formats, up to 50MB</MudText>
+                            </div>
+                            <div>
+                                <MudButton Class="w-[142px] h-12 !text-[#54575C] !capitalize !text-xl !font-medium !rounded-2xl !border-2 !border-[#CBD0DC]">Browse File</MudButton>
+                            </div>
+                        </MudPaper>
+                    </ActivatorContent>
+                </MudFileUpload>
+            }
+            else
+            {
+                <div class="flex items-center gap-2">
+                    <div class="w-73 h-75">
+                        <img
+                            src="/images/qr_sample.webp"
+                            alt="sample qr"
+                        />
+                    </div>
+                    <div class="w-[calc(100%-300px)] flex flex-col justify-between !gap-4">
+                        <div class="w-full relative flex items-center gap-4 bg-[#EEF1F7] rounded-2xl !p-4">
+                            <div>
+                                <MudIcon Icon="@IconService.ImageIcon" Class="!text-[64px]"/> 
+                            </div>
+                            <div>
+                                <MudText Class="!font-bold !text-2xl !text-[#292D32]">NFT PAYL KOYN PINKY PIE</MudText>
+                                <div class="flex items-center !gap-2">
+                                    <MudText Class="!text-[#A9ACB4]">64 KB of 64 KB •</MudText>
+                                    <div class="flex items-center gap-2">
+                                        <MudIcon Icon="@IconService.LoadingIcon" Class="!text-base"/>
+                                        <MudText Class="!text-[#292D32] !text-base !font-medium">Uploading...</MudText>
+                                    </div>
+                                </div>
+                            </div>
+                            <MudIconButton Icon="@IconService.DeleteIcon" aria-label="delete" Class="absolute top-4 right-4 !p-0"/>
+                        </div>
+                        <MudText Class="!text-xl !font-medium !text-[#292D32]">Uploading your files will cost:</MudText>
+                        <div>
+                            <MudText>
+                                <span class="!text-[#A9ACB4]">Network fee: </span>
+                                <span class="!font-bold !text-[#292D32]">2 ADA</span>
+                            </MudText>
+                            <MudText>
+                                <span class="!text-[#A9ACB4]">Service fee: </span>
+                                <span class="!font-bold !text-[#292D32]">1 ADA</span>
+                            </MudText>
+                        </div>
+                        <MudDivider/>
+                        <MudText Class="!text-xl">
+                            <span class="!text-[#A9ACB4]">Total Cost: </span>
+                            <span class="!font-bold !text-[#292D32]">3 ADA</span>
+                        </MudText>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+        <MudPaper 
+            Elevation="0"
+            Class="w-full  h-66 flex items-center justify-center !gap-12 !rounded-3xl !bg-[#EFF1FA]/20 !p-6"
+        >
+            @foreach (var file in FileList)
+            {
+                <div class="size-50">
+                    <img src="/images/nft/nft_payl_koyn_princess.jpg" alt="@file.Name"/>
+                </div>
+            }
+        </MudPaper>
+</section>
