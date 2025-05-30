@@ -83,4 +83,13 @@ public class WalletService(
         using WalletDbContext dbContext = dbContextFactory.CreateDbContext();
         return await dbContext.Wallets.FirstOrDefaultAsync(w => w.Address == address);
     }
+
+    public async Task<PrivateKey?> GetPrivateKeyByAddressAsync(string address)
+    {
+        Wallet? wallet = await GetWalletAsync(address);
+        if (wallet == null)
+            return null;
+
+        return GetPaymentPrivateKey(wallet.Index);
+    }
 }
