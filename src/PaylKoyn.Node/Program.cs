@@ -2,6 +2,7 @@ using System.Text;
 using Chrysalis.Tx.Models;
 using Chrysalis.Tx.Providers;
 using FastEndpoints;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Services;
 using PaylKoyn.Node.Data;
@@ -9,6 +10,12 @@ using PaylKoyn.Node.Services;
 using Scalar.AspNetCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<KestrelServerOptions>(options =>
+{
+    options.Limits.KeepAliveTimeout = TimeSpan.FromHours(1);
+    options.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(10);
+});
 
 builder.Services.AddOpenApi();
 builder.Services.AddFastEndpoints(o => o.IncludeAbstractValidators = true);
