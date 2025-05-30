@@ -5,7 +5,7 @@ using PaylKoyn.Node.Services;
 using Chrysalis.Wallet.Models.Keys;
 namespace PaylKoyn.Node.Endpoints;
 
-public class UploadRequest
+public class UploadFileRequest
 {
     public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
@@ -14,7 +14,7 @@ public class UploadRequest
 }
 
 [RequestSizeLimit(100_000_000)]
-public class ReceiveUpload(FileService fileService, WalletService walletService) : Endpoint<UploadRequest>
+public class ReceiveUpload(FileService fileService, WalletService walletService) : Endpoint<UploadFileRequest>
 {
     public override void Configure()
     {
@@ -27,7 +27,7 @@ public class ReceiveUpload(FileService fileService, WalletService walletService)
             .WithDescription("This endpoint is used to receive an upload from the client."));
     }
 
-    public override async Task HandleAsync(UploadRequest req, CancellationToken ct)
+    public override async Task HandleAsync(UploadFileRequest req, CancellationToken ct)
     {
         Console.WriteLine($"Received file upload: Id={req.Id}, Name={req.Name}, ContentType={req.ContentType}, FileSize={req.File.Length} bytes");
         
