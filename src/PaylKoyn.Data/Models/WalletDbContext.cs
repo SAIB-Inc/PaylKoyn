@@ -6,6 +6,7 @@ namespace PaylKoyn.Data.Models;
 public class WalletDbContext(DbContextOptions Options) : DbContext(Options)
 {
     public DbSet<Wallet> Wallets { get; set; }
+    public DbSet<UploadTxConfirmation> UploadTxConfirmations { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -14,6 +15,11 @@ public class WalletDbContext(DbContextOptions Options) : DbContext(Options)
         modelBuilder.Entity<Wallet>(e =>
         {
             e.HasKey(w => w.Address);
+        });
+
+        modelBuilder.Entity<UploadTxConfirmation>(e =>
+        {
+            e.HasKey(utc => utc.Address);
         });
     }
 }
