@@ -1,5 +1,6 @@
 using PaylKoyn.Web.Components;
 using MudBlazor.Services;
+using PaylKoyn.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +9,8 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddMudServices();
+
+builder.Services.AddSingleton<IconService>();
 
 var app = builder.Build();
 
