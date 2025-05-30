@@ -70,6 +70,7 @@ public class FileService(
                 {
                     string txHash = await cardanoDataProvider.SubmitTransactionAsync(signedTx);
                     logger.LogInformation("Transaction submitted successfully: {TransactionId}", txHash);
+                    break;
                 }
                 catch (Exception ex)
                 {
