@@ -46,6 +46,21 @@ public class WalletService(
         return address;
     }
 
+    public PrivateKey GetPaymentPrivateKey(int index = 0)
+    {
+        Mnemonic mnemonic = Mnemonic.Restore(_seed, English.Words);
+        PrivateKey accountKey = mnemonic
+            .GetRootKey()
+            .Derive(PurposeType.Shelley, DerivationType.HARD)
+            .Derive(CoinType.Ada, DerivationType.HARD)
+            .Derive(0, DerivationType.HARD);
+        PrivateKey paymentPrivateKey = accountKey
+            .Derive(RoleType.ExternalChain)
+            .Derive(index);
+
+        return paymentPrivateKey;
+    }
+
     public async Task<Wallet> GenerateWalletAsync()
     {
         using WalletDbContext dbContext = dbContextFactory.CreateDbContext();
@@ -66,27 +81,22 @@ public class WalletService(
         return wallet;
     }
 
-    public async Task<IEnumerable<ResolvedInput>> GetUtxosAsync(Wallet wallet)
+    public async Task<Wallet?> GetWalletAsync(string address)
     {
-        try
-        {
-            return await cardanoDataProvider.GetUtxosAsync([wallet.Address]);
-        }
-        catch
-        {
-            return [];
-        }
+        using WalletDbContext dbContext = dbContextFactory.CreateDbContext();
+        return await dbContext.Wallets.FirstOrDefaultAsync(w => w.Address == address);
     }
 
-    public async Task<IEnumerable<ResolvedInput>> GetUtxosAsync(string address)
+    public async Task<(bool success, IEnumerable<ResolvedInput> utxos)> TryGetUtxosAsync(string address)
     {
         try
         {
-            return await cardanoDataProvider.GetUtxosAsync([address]);
+            var utxos = await cardanoDataProvider.GetUtxosAsync([address]);
+            return (utxos.Count != 0, utxos);
         }
         catch
         {
-            return [];
+            return (false, Enumerable.Empty<ResolvedInput>());
         }
     }
 }
