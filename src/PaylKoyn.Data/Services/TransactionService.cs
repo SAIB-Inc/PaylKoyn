@@ -75,6 +75,16 @@ public class TransactionService()
         return transactions;
     }
 
+    public ulong CalculateFee(
+        int fileSize,
+        ulong revenueFee
+    )
+    {
+        decimal splitCount = Math.Ceiling((decimal)fileSize / 16384);
+
+        return (ulong)(splitCount * 900000 + revenueFee);
+    }
+
     private static Transaction UploadFileTxBuilder(
         string address,
         byte[] file,
@@ -134,7 +144,6 @@ public class TransactionService()
             {
                 { 6673, new MetadatumMap(metadata) }
             });
-
 
         PostAlonzoAuxiliaryDataMap auxData = new(labeledMetadata, null, null, null, null);
         txBuilder.SetAuxiliaryData(auxData);
