@@ -4,6 +4,8 @@ using PaylKoyn.Node.Services;
 
 namespace PaylKoyn.Node.Endpoints;
 
+public record UploadRequestResponse(string Id);
+
 public class UploadRequest(WalletService walletService) : EndpointWithoutRequest
 {
     public override void Configure()
@@ -17,6 +19,6 @@ public class UploadRequest(WalletService walletService) : EndpointWithoutRequest
         Wallet wallet = await walletService.GenerateWalletAsync();
         string address = wallet.Address;
 
-        await SendOkAsync(address, ct);
+        await SendOkAsync(new UploadRequestResponse(address), ct);
     }
 }
