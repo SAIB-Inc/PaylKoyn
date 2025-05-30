@@ -5,6 +5,7 @@ using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models;
 using PaylKoyn.Data.Models.Entity;
+using PaylKoyn.Data.Utils;
 using MetadatumMap = Chrysalis.Cbor.Types.Cardano.Core.Transaction.MetadatumMap;
 
 namespace PaylKoyn.API.Endpoints;
@@ -39,31 +40,6 @@ public class GetPayloadByTxHash(IDbContextFactory<PaylKoynDbContext> dbContextFa
             return;
         }
 
-        await SendOkAsync(GetPayloadFromTransactionRaw(payLoad), cancellation: ct);
-    }
-
-    private static string? GetPayloadFromTransactionRaw(TransactionBySlot transaction)
-    {
-        TransactionMetadatum? txMetadatum = CborSerializer.Deserialize<TransactionMetadatum>(transaction.Metadata);
-        if (txMetadatum is not MetadatumMap metadatumMap) return null;
-
-        string? payloadStr = metadatumMap.Value
-            .Where(kvp => kvp is { Key: MetadataText { Value: "payload" } })
-            .FirstOrDefault()
-            .Value switch
-            {
-                MetadatumList arr => arr.Value
-                    .Select(m => m switch
-                    {
-                        MetadatumBytes bytes => Convert.ToHexStringLower(bytes.Value),
-                        MetadataText text => text.Value,
-                        _ => string.Empty
-                    })
-                    .Aggregate(new StringBuilder(), (sb, str) => sb.Append(str)).ToString(),
-                MetadataText text => text.Value,
-                _ => string.Empty
-            };
-
-        return payloadStr;
+        await SendOkAsync(DataUtils.GetPayloadFromTransactionRaw(payLoad), cancellation: ct);
     }
 }
