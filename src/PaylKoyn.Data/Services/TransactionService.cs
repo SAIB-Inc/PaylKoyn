@@ -23,7 +23,8 @@ public class TransactionService()
         string fileName,
         string contentType,
         List<ResolvedInput> inputs,
-        ProtocolParams protocolParams
+        ProtocolParams protocolParams,
+        string revenueAddress
     )
     {
         int _maxTxSize = (int)(protocolParams.MaxTransactionSize ?? 16384) - 107;
@@ -50,7 +51,7 @@ public class TransactionService()
             bool isLastChunk = index == fileChunks.Count - 1;
 
             PostMaryTransaction chunkTx = (PostMaryTransaction)UploadFileTxBuilder(
-                address,
+                isLastChunk ? revenueAddress : address,
                 chunk,
                 fileName,
                 contentType,

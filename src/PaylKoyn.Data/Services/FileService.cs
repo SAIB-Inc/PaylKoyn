@@ -24,6 +24,8 @@ public class FileService(
         TimeSpan.FromMinutes(int.TryParse(configuration["File:ExpirationMinutes"], out int minutes) ? minutes : 5);
     private readonly TimeSpan _getUtxosInterval =
         TimeSpan.FromSeconds(int.TryParse(configuration["File:GetUtxosIntervalSeconds"], out int seconds) ? seconds : 10);
+    private readonly string _rewardAddress = configuration["RewardAddress"]
+        ?? throw new ArgumentException("Reward Address cannot be null or empty.", nameof(configuration));
     private readonly string _tempFilePath = configuration["File:TempFilePath"] ?? "/tmp";
     private readonly int _submissionRetries =
         int.TryParse(configuration["File:SubmissionRetries"], out int retries) ? retries : 3;
@@ -31,7 +33,8 @@ public class FileService(
 
     public async Task<bool> UploadAsync(string address, byte[] file, string contentType, string fileName, PrivateKey paymentPrivateKey)
     {
-
+        if (string.IsNullOrWhiteSpace(address))
+            throw new ArgumentException("Address cannot be null or empty.", nameof(address));
         logger.LogInformation("Saving file to temporary path: {TempFilePath}", _tempFilePath);
         string tempFilePath = Path.Combine(_tempFilePath, address);
         await File.WriteAllBytesAsync(tempFilePath, file);
@@ -50,7 +53,8 @@ public class FileService(
             fileName,
             contentType,
             [.. utxos],
-            protocolParams
+            protocolParams,
+            _rewardAddress
         );
 
         ulong totalFee = 0;
