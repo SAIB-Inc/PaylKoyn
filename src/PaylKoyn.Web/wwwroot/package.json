@@ -1,0 +1,20 @@
+{
+    "name": "wwwroot",
+    "module": "index.ts",
+    "type": "module",
+    "scripts": {
+        "watch:styles": "tailwindcss -i ./styles/app.css -o ./dist/app.bundle.css --watch",
+        "build:styles": "tailwindcss -i ./styles/app.css -o ./dist/app.bundle.css --minify",
+        "watch:scripts": "esbuild scripts/app.ts --bundle --outfile=dist/app.bundle.js --watch",
+        "build:scripts": "esbuild scripts/app.ts --bundle --outfile=dist/app.bundle.js",
+        "watch": "concurrently \"bun run watch:styles\" \"bun run watch:scripts\"",
+        "build": "concurrently \"bun run build:styles\" \"bun run build:scripts\""
+    },
+    "devDependencies": {
+        "@tailwindcss/cli": "^4.1.8",
+        "concurrently": "^9.1.2",
+        "esbuild": "^0.25.5",
+        "tailwindcss": "^4.1.8",
+        "typescript": "^5.8.3"
+    }
+}
