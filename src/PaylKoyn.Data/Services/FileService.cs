@@ -15,7 +15,6 @@ namespace PaylKoyn.Data.Services;
 
 public class FileService(
     IConfiguration configuration,
-    WalletService walletService,
     TransactionService transactionService,
     ICardanoDataProvider cardanoDataProvider,
     ILogger<FileService> logger
@@ -29,14 +28,9 @@ public class FileService(
     private readonly int _submissionRetries =
         int.TryParse(configuration["File:SubmissionRetries"], out int retries) ? retries : 3;
 
-    public async Task<Wallet> RequestUploadAsync() => await walletService.GenerateWalletAsync();
 
-    public async Task<bool> UploadAsync(string address, byte[] file, string contentType, string fileName)
+    public async Task<bool> UploadAsync(string address, byte[] file, string contentType, string fileName, PrivateKey paymentPrivateKey)
     {
-        logger.LogInformation("Starting file upload for address: {Address}", address);
-        Wallet? wallet = await walletService.GetWalletAsync(address)
-            ?? throw new ArgumentException("Wallet not found");
-        logger.LogInformation("Wallet found: {WalletAddress}", wallet.Address);
 
         logger.LogInformation("Saving file to temporary path: {TempFilePath}", _tempFilePath);
         string tempFilePath = Path.Combine(_tempFilePath, address);
@@ -63,7 +57,6 @@ public class FileService(
         foreach (Transaction tx in txs)
         {
             logger.LogInformation("Signing transaction");
-            PrivateKey paymentPrivateKey = walletService.GetPaymentPrivateKey(wallet.Index);
             Transaction signedTx = tx.Sign(paymentPrivateKey);
             logger.LogInformation("Transaction signed successfully");
 
@@ -104,7 +97,7 @@ public class FileService(
         Stopwatch stopwatch = Stopwatch.StartNew();
         while (stopwatch.Elapsed < _expirationTime)
         {
-            (bool isSuccess, IEnumerable<ResolvedInput> utxos) = await walletService.TryGetUtxosAsync(address);
+            (bool isSuccess, IEnumerable<ResolvedInput> utxos) = await TryGetUtxosAsync(address);
             if (isSuccess) return utxos;
 
             logger.LogInformation("No UTXOs found for address: {Address}. Retrying in {Interval} seconds...", address, _getUtxosInterval.TotalSeconds);
@@ -112,5 +105,18 @@ public class FileService(
         }
 
         throw new TimeoutException("Upload request has expired, no UTXOs found for the address within the specified time.");
+    }
+
+    public async Task<(bool success, IEnumerable<ResolvedInput> utxos)> TryGetUtxosAsync(string address)
+    {
+        try
+        {
+            var utxos = await cardanoDataProvider.GetUtxosAsync([address]);
+            return (utxos.Count != 0, utxos);
+        }
+        catch
+        {
+            return (false, Enumerable.Empty<ResolvedInput>());
+        }
     }
 }
