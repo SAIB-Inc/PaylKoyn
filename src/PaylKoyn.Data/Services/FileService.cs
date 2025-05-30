@@ -83,7 +83,7 @@ public class FileService(
                     logger.LogError(ex, "Failed to submit transaction. Retrying...");
                     retriesRemaining--;
                     if (_submissionRetries <= 0) throw;
-                    await Task.Delay(2000); // Wait before retrying
+                    await Task.Delay(_getUtxosInterval); // Wait before retrying
                     continue;
                 }
             }
