@@ -1,0 +1,57 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PaylKoyn.Web", "src\PaylKoyn.Web\PaylKoyn.Web.csproj", "{B7C67E96-4F7D-EAFF-9B2A-37C776113530}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PaylKoyn.API", "src\PaylKoyn.API\PaylKoyn.API.csproj", "{6FD0565A-71F6-8647-2E27-D2E9819C779E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PaylKoyn.Data", "src\PaylKoyn.Data\PaylKoyn.Data.csproj", "{1DF6F086-B119-E54A-01B5-BA27FB9C51C4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PaylKoyn.Sync", "src\PaylKoyn.Sync\PaylKoyn.Sync.csproj", "{73F6E9C5-6528-69FD-7DB4-3B6E91BDEA73}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PaylKoyn.Node", "src\PaylKoyn.Node\PaylKoyn.Node.csproj", "{664C2C1B-040D-1BEE-7B32-4C8574E4B8E2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B7C67E96-4F7D-EAFF-9B2A-37C776113530}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B7C67E96-4F7D-EAFF-9B2A-37C776113530}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B7C67E96-4F7D-EAFF-9B2A-37C776113530}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B7C67E96-4F7D-EAFF-9B2A-37C776113530}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6FD0565A-71F6-8647-2E27-D2E9819C779E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6FD0565A-71F6-8647-2E27-D2E9819C779E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6FD0565A-71F6-8647-2E27-D2E9819C779E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6FD0565A-71F6-8647-2E27-D2E9819C779E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1DF6F086-B119-E54A-01B5-BA27FB9C51C4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1DF6F086-B119-E54A-01B5-BA27FB9C51C4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1DF6F086-B119-E54A-01B5-BA27FB9C51C4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1DF6F086-B119-E54A-01B5-BA27FB9C51C4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{73F6E9C5-6528-69FD-7DB4-3B6E91BDEA73}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{73F6E9C5-6528-69FD-7DB4-3B6E91BDEA73}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{73F6E9C5-6528-69FD-7DB4-3B6E91BDEA73}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{73F6E9C5-6528-69FD-7DB4-3B6E91BDEA73}.Release|Any CPU.Build.0 = Release|Any CPU
+		{664C2C1B-040D-1BEE-7B32-4C8574E4B8E2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{664C2C1B-040D-1BEE-7B32-4C8574E4B8E2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{664C2C1B-040D-1BEE-7B32-4C8574E4B8E2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{664C2C1B-040D-1BEE-7B32-4C8574E4B8E2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{B7C67E96-4F7D-EAFF-9B2A-37C776113530} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{6FD0565A-71F6-8647-2E27-D2E9819C779E} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{1DF6F086-B119-E54A-01B5-BA27FB9C51C4} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{73F6E9C5-6528-69FD-7DB4-3B6E91BDEA73} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{664C2C1B-040D-1BEE-7B32-4C8574E4B8E2} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F206BC9C-44E4-499B-A925-1122EC018326}
+	EndGlobalSection
+EndGlobal
