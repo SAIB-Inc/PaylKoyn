@@ -36,7 +36,7 @@ public class TransactionService()
             return [initialTx];
         }
 
-        int splitCount = (int)Math.Ceiling((double)initialTxSize / _maxTxSize);
+        int splitCount = (int)Math.Ceiling((double)initialTxSize / _maxTxSize) + 1; // 52.9 53
 
         List<byte[]> fileChunks = SplitFile(file, splitCount);
         fileChunks.Reverse();
@@ -48,7 +48,7 @@ public class TransactionService()
         foreach (byte[] chunk in fileChunks)
         {
             bool isLastChunk = index == fileChunks.Count - 1;
-            
+
             PostMaryTransaction chunkTx = (PostMaryTransaction)UploadFileTxBuilder(
                 address,
                 chunk,
