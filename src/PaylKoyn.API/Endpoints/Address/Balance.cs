@@ -5,7 +5,6 @@ using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models;
-using PaylKoyn.Data.Models.Api.Request.Data;
 using PaylKoyn.Data.Models.Api.Response.Data;
 using PaylKoyn.Data.Models.Entity;
 
@@ -13,7 +12,7 @@ namespace PaylKoyn.API.Endpoints.Address;
 
 public class Balance(
     IDbContextFactory<PaylKoynDbContext> dbContextFactory
-) : Endpoint<BalanceByAddressRequest>
+) : EndpointWithoutRequest
 {
     public override void Configure()
     {
@@ -30,7 +29,6 @@ public class Balance(
     }
 
     public override async Task HandleAsync(
-        BalanceByAddressRequest request,
         CancellationToken cancellationToken
     )
     {
