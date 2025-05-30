@@ -29,7 +29,7 @@ var seed = Mnemonic.Generate(English.Words, 24);
 Console.WriteLine(string.Join(" ", seed.Words));
 var fileService = app.Services.GetRequiredService<FileService>();
 var wallet = await fileService.RequestUploadAsync();
-var fileContent = Encoding.ASCII.GetBytes(string.Join(",", Enumerable.Range(0, 20000).Select(i => "Hello, World!")));
+var fileContent = Encoding.ASCII.GetBytes(string.Join(",", Enumerable.Range(0, 5000).Select(i => "Hello, World!")));
 var fileContentSize = fileContent.Length;
 Console.WriteLine($"File content size: {fileContentSize} bytes");
 var contentType = "text/plain";
