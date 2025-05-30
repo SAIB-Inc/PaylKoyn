@@ -42,8 +42,8 @@ public class TransactionBySlotReducer(
             return new TransactionBySlot(
                 Hash: transaction.Hash(),
                 Slot: currentSlot,
-                TxMetadatumRaw: CborSerializer.Serialize(txMetadatum),
-                TxRaw: CborSerializer.Serialize(transaction)
+                Metadata: CborSerializer.Serialize(txMetadatum),
+                Body: CborSerializer.Serialize(transaction)
             );
         }).Where(x => x is not null)!;
 
