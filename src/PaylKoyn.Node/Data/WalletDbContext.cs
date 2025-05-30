@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models;
 
-namespace PaylKoyn.Data.Models;
+namespace PaylKoyn.Node.Data;
 
 public class WalletDbContext(DbContextOptions Options) : DbContext(Options)
 {

@@ -1,19 +1,16 @@
-using Chrysalis.Tx.Models;
-using Chrysalis.Tx.Models.Cbor;
 using Chrysalis.Wallet.Models.Enums;
 using Chrysalis.Wallet.Models.Keys;
 using Chrysalis.Wallet.Words;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using PaylKoyn.Data.Models;
+using PaylKoyn.Node.Data;
 using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;
 
-namespace PaylKoyn.Data.Services;
+namespace PaylKoyn.Node.Services;
 
 public class WalletService(
     IConfiguration configuration,
-    IDbContextFactory<WalletDbContext> dbContextFactory,
-    ICardanoDataProvider cardanoDataProvider
+    IDbContextFactory<WalletDbContext> dbContextFactory
 )
 {
     private readonly string _seed = configuration["Seed"] ?? throw new ArgumentNullException("Seed is not configured");

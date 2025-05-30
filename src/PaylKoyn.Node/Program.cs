@@ -1,11 +1,10 @@
 using System.Text;
 using Chrysalis.Tx.Models;
 using Chrysalis.Tx.Providers;
-using Chrysalis.Wallet.Models.Keys;
-using Chrysalis.Wallet.Words;
 using Microsoft.EntityFrameworkCore;
-using PaylKoyn.Data.Models;
 using PaylKoyn.Data.Services;
+using PaylKoyn.Node.Data;
+using PaylKoyn.Node.Services;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
