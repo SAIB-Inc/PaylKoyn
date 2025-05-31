@@ -1,10 +1,9 @@
 using FastEndpoints;
 using PaylKoyn.Data.Services;
+using PaylKoyn.Data.Requests;
+using PaylKoyn.Data.Responses;
 
 namespace PaylKoyn.Node.Endpoints;
-
-public record EstimateFeeRequest(int ContentLength);
-public record EstimateFeeResponse(ulong EstimatedFee);
 
 public class EstimateFee(TransactionService transactionService, IConfiguration configuration) : Endpoint<EstimateFeeRequest, EstimateFeeResponse>
 {

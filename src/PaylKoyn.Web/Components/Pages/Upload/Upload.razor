@@ -29,8 +29,7 @@
         </div>
         <MudDivider Class="!border-[#CBD0DC]"/>
         <div class="!p-6">
-            @if(!FileList!.Any())
-            {
+
                 <MudFileUpload
                     T="IReadOnlyList<IBrowserFile>"
                     Accept=".png, .jpg, .mp4, .mov"
@@ -62,8 +61,7 @@
                         </MudPaper>
                     </ActivatorContent>
                 </MudFileUpload>
-            }
-            else
+            @if(FileList!.Any())
             {
                 <div class="flex items-center gap-2">
                     <div class="w-73 h-75">
@@ -89,22 +87,37 @@
                             </div>
                             <MudIconButton Icon="@IconService.DeleteIcon" aria-label="delete" Class="absolute top-4 right-4 !p-0"/>
                         </div>
-                        <MudText Class="!text-xl !font-medium !text-[#292D32]">Uploading your files will cost:</MudText>
-                        <div>
-                            <MudText>
-                                <span class="!text-[#A9ACB4]">Network fee: </span>
-                                <span class="!font-bold !text-[#292D32]">2 ADA</span>
-                            </MudText>
-                            <MudText>
-                                <span class="!text-[#A9ACB4]">Service fee: </span>
-                                <span class="!font-bold !text-[#292D32]">1 ADA</span>
-                            </MudText>
-                        </div>
-                        <MudDivider/>
+                        <MudText Class="!text-xl !font-medium !text-[#292D32]">Upload Address:</MudText>
+                        <MudText Class="!text-sm !font-mono !text-[#5438DC] break-all">@UploadAddress</MudText>
+                        
+                        <MudText Class="!text-xl !font-medium !text-[#292D32]">Estimated cost:</MudText>
                         <MudText Class="!text-xl">
-                            <span class="!text-[#A9ACB4]">Total Cost: </span>
-                            <span class="!font-bold !text-[#292D32]">3 ADA</span>
+                            <span class="!text-[#A9ACB4]">Total: </span>
+                            <span class="!font-bold !text-[#292D32]">@($"2 ADA")</span>
                         </MudText>
+                        
+                        <MudButton 
+                            Variant="Variant.Filled" 
+                            Color="Color.Primary" 
+                            OnClick="() => UploadFile(FileList.First())"
+                            Disabled="@(FileList.First().Status == UploadStatus.Uploading)"
+                            Class="!mt-4">
+                            @(FileList.First().Status switch 
+                            {
+                                UploadStatus.Ready => "Upload File",
+                                UploadStatus.Uploading => "Uploading...",
+                                UploadStatus.Completed => "Upload Complete",
+                                UploadStatus.Error => "Upload Failed",
+                                _ => "Upload"
+                            })
+                        </MudButton>
+                        
+                        @if (!string.IsNullOrEmpty(FileList.First().Message))
+                        {
+                            <MudText Class="!text-sm !mt-2" Color="@(FileList.First().Status == UploadStatus.Error ? Color.Error : Color.Success)">
+                                @FileList.First().Message
+                            </MudText>
+                        }
                     </div>
                 </div>
             }
@@ -114,12 +127,7 @@
         Elevation="0"
         Class="w-full  h-66 flex items-center justify-center !gap-12 !rounded-3xl !bg-[#EFF1FA]/20 !p-6 overflow-hidden"
     >
-        @foreach (var file in FileList)
-        {
-            <div class="size-50">
-                <img src="/images/nft/nft_payl_koyn_princess.jpg" alt="@file.Name"/>
-            </div>
-        }
+    
     </MudPaper>
 </section>
 
