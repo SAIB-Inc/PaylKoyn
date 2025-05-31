@@ -1,11 +1,10 @@
 using FastEndpoints;
 using PaylKoyn.Data.Models;
 using PaylKoyn.Data.Services;
+using PaylKoyn.Data.Responses;
 using PaylKoyn.Node.Services;
 
 namespace PaylKoyn.Node.Endpoints;
-
-public record UploadRequestResponse(string Id);
 
 public class UploadRequest(WalletService walletService) : EndpointWithoutRequest
 {

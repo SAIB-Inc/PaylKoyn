@@ -11,6 +11,8 @@ builder.Services.AddRazorComponents()
 builder.Services.AddMudServices();
 
 builder.Services.AddSingleton<IconService>();
+builder.Services.AddScoped<UploadService>();
+builder.Services.AddHttpClient();
 
 var app = builder.Build();
 

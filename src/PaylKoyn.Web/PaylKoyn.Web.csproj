@@ -10,4 +10,8 @@
     <PackageReference Include="MudBlazor" Version="8.7.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\PaylKoyn.Data\PaylKoyn.Data.csproj" />
+  </ItemGroup>
+
 </Project>
