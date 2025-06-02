@@ -1,5 +1,8 @@
 using System.Text;
+using System.Text.Json;
+using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
 using Chrysalis.Cbor.Serialization;
+using Chrysalis.Cbor.Types.Cardano.Core;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +10,7 @@ using PaylKoyn.Data.Models;
 using PaylKoyn.Data.Models.Common;
 using PaylKoyn.Data.Models.Entity;
 using PaylKoyn.Data.Utils;
+using CMetadata = Chrysalis.Cbor.Types.Cardano.Core.Metadata;
 using MetadatumMap = Chrysalis.Cbor.Types.Cardano.Core.Transaction.MetadatumMap;
 
 namespace PaylKoyn.API.Endpoints;
@@ -15,10 +19,10 @@ public class GetMetadataByTxHash(IDbContextFactory<PaylKoynDbContext> dbContextF
 {
     public override void Configure()
     {
-        Get("/tx/{txHash}/metadata");
+        Get("/txs/{txHash}/metadata");
         AllowAnonymous();
         Description(x => x
-            .WithTags("Transaction")
+            .WithTags("Transactions")
             .Produces(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound));
     }
@@ -36,25 +40,36 @@ public class GetMetadataByTxHash(IDbContextFactory<PaylKoynDbContext> dbContextF
 
         if (tx is null)
         {
-            AddError("No payloads found.");
+            AddError("No transaction found.");
             await SendNotFoundAsync(ct);
             return;
         }
 
-        TransactionMetadatum? txMetadatum = CborSerializer.Deserialize<TransactionMetadatum>(tx.Metadata);
-        MetadatumMap? metadataMap = DataUtils.GetMetadataMapBytes(txMetadatum, "metadata");
-        string fileName = DataUtils.GetMetadataValueString(metadataMap?.Value, "filename") ?? "unknown.txt";
-        string contentType = DataUtils.GetMetadataValueString(metadataMap?.Value, "contentType") ?? "application/octet-stream";
-        PaylKoynMetadata metadata = new(
-            Version: DataUtils.GetMetadataValueLong(txMetadatum, "version") ?? 0,
-            Payload: DataUtils.GetPayloadFromTransactionMetadatum(txMetadatum)!,
-            Metadata: new (
-                FileName: fileName,
-                ContentType: contentType
-            ),
-            Next: Convert.ToHexStringLower(DataUtils.GetMetadataValueBytes(txMetadatum, "next") ?? [])
-        );
+        CMetadata? metadata = CborSerializer.Deserialize<CMetadata>(tx.Metadata);
+        Dictionary<ulong, TransactionMetadatum> metadataDict = metadata.Value();
+        var response = metadataDict
+            .Select(kv =>
+            {
+                TransactionMetadatum value = kv.Value;
+                return new TransactionMetadatumResponse
+                {
+                    Key = kv.Key,
+                    Value = value switch
+                    {
+                        MetadatumMap map => map.Value.ToDictionary(m => m.Key, m => m.Value),
+                        MetadatumList list => list.Value.Select(m => m).ToList(),
+                        _ => value
+                    }
+                };
+            })
+            .ToList();
 
         await SendOkAsync(metadata, cancellation: ct);
     }
+}
+
+public class TransactionMetadatumResponse
+{
+    public ulong Key { get; set; }
+    public object Value { get; set; } = null!;
 }

@@ -36,12 +36,12 @@ public class TransactionBySlotReducer(
             if (!auxiliaryData.TryGetValue(index, out AuxiliaryData? auxData)) return null;
 
             Metadata? metadata = auxData.Metadata();
-            if (metadata is not null && metadata.Value().TryGetValue(_transactionMetadatumKey, out TransactionMetadatum? txMetadatum))
+            if (metadata is not null && metadata.Value().TryGetValue(_transactionMetadatumKey, out _))
             {
                 return new TransactionBySlot(
                     Hash: transaction.Hash(),
                     Slot: currentSlot,
-                    Metadata: CborSerializer.Serialize(txMetadatum),
+                    Metadata: CborSerializer.Serialize(metadata),
                     Body: CborSerializer.Serialize(transaction)
                 );
             }

@@ -14,10 +14,10 @@ public class GetPayloadByTxHash(IDbContextFactory<PaylKoynDbContext> dbContextFa
 {
     public override void Configure()
     {
-        Get("/tx/{txHash}/payload");
+        Get("/txs/{txHash}/payload");
         AllowAnonymous();
         Description(x => x
-            .WithTags("Transaction")
+            .WithTags("Transactions")
             .Produces(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound));
     }
