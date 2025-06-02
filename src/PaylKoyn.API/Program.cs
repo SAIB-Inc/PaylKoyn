@@ -32,7 +32,7 @@ app.UseFastEndpoints(c =>
 {
     c.Endpoints.RoutePrefix = "api";
     c.Versioning.Prefix = "v";
-    c.Versioning.DefaultVersion = 0;
+    c.Versioning.DefaultVersion = 1;
     c.Versioning.PrependToRoute = true;
     c.Serializer.Options.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
     c.Serializer.Options.WriteIndented = true;
