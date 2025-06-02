@@ -20,7 +20,7 @@ builder.Services.Configure<KestrelServerOptions>(options =>
 builder.Services.AddOpenApi();
 builder.Services.AddFastEndpoints(o => o.IncludeAbstractValidators = true);
 builder.Services.AddSingleton<ICardanoDataProvider>(provider =>
-    new Blockfrost(builder.Configuration.GetValue("BlockfrostApiKey", "previewBVVptlCv4DAR04h3XADZnrUdNTiJyHaJ")));
+    new Blockfrost(builder.Configuration.GetValue("BlockfrostApiKey", "previewBVVptlCv4DAR04h3XADZnrUdNTiJyHaJ"))); 
 
 builder.Services.AddDbContextFactory<WalletDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));

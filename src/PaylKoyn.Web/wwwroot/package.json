@@ -5,8 +5,8 @@
     "scripts": {
         "watch:styles": "tailwindcss -i ./styles/app.css -o ./dist/app.bundle.css --watch",
         "build:styles": "tailwindcss -i ./styles/app.css -o ./dist/app.bundle.css --minify",
-        "watch:scripts": "esbuild scripts/app.ts --bundle --outfile=dist/app.bundle.js --watch",
-        "build:scripts": "esbuild scripts/app.ts --bundle --outfile=dist/app.bundle.js",
+        "watch:scripts": "bun build scripts/app.ts --outfile dist/app.bundle.js --watch",
+        "build:scripts": "bun build scripts/app.ts --outfile dist/app.bundle.js",
         "watch": "concurrently \"bun run watch:styles\" \"bun run watch:scripts\"",
         "build": "concurrently \"bun run build:styles\" \"bun run build:scripts\""
     },
