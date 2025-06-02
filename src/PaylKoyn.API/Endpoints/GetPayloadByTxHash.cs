@@ -14,7 +14,7 @@ public class GetPayloadByTxHash(IDbContextFactory<PaylKoynDbContext> dbContextFa
 {
     public override void Configure()
     {
-        Get("/payload");
+        Get("/tx/{txHash}/payload");
         AllowAnonymous();
         Description(x => x
             .WithTags("Transaction")
@@ -26,7 +26,7 @@ public class GetPayloadByTxHash(IDbContextFactory<PaylKoynDbContext> dbContextFa
     {
         await using PaylKoynDbContext dbContext = await dbContextFactory.CreateDbContextAsync(ct);
 
-        string? txHash = Query<string>("txHash", isRequired: true);
+        string? txHash = Route<string>("txHash", isRequired: true);
 
         TransactionBySlot? payLoad = await dbContext.TransactionsBySlot
             .AsNoTracking()

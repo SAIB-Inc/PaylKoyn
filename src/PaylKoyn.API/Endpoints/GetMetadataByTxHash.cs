@@ -15,7 +15,7 @@ public class GetMetadataByTxHash(IDbContextFactory<PaylKoynDbContext> dbContextF
 {
     public override void Configure()
     {
-        Get("/metadata");
+        Get("/tx/{txHash}/metadata");
         AllowAnonymous();
         Description(x => x
             .WithTags("Transaction")
@@ -27,7 +27,7 @@ public class GetMetadataByTxHash(IDbContextFactory<PaylKoynDbContext> dbContextF
     {
         await using PaylKoynDbContext dbContext = await dbContextFactory.CreateDbContextAsync(ct);
 
-        string? txHash = Query<string>("txHash", isRequired: true);
+        string? txHash = Route<string>("txHash", isRequired: true);
 
         TransactionBySlot? tx = await dbContext.TransactionsBySlot
             .AsNoTracking()

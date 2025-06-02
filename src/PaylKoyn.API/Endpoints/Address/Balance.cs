@@ -42,6 +42,12 @@ public class Balance(
             .Where(e => string.IsNullOrEmpty(e.SpentTxHash))
             .ToListAsync(cancellationToken: cancellationToken);
 
+        if (!resolvedOutRefs.Any())
+        {
+            await SendAsync(new BalanceByAddressResponse(0, []), cancellation: cancellationToken);
+            return;
+        }
+
         IEnumerable<TransactionOutput> resolvedTxOutputs = resolvedOutRefs
             .Select(e => CborSerializer.Deserialize<TransactionOutput>(e.OutputRaw));
 
