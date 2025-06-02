@@ -8,5 +8,7 @@ public record OutputBySlot(
     string SpentTxHash,
     ulong? SpentSlot,
     string Address,
-    byte[] OutputRaw
+    string BlockHash,
+    string? ScriptDataHash,
+    byte[] Raw
 ) : IReducerModel;
