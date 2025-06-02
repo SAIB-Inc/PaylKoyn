@@ -6,6 +6,7 @@ public record OutputBySlot(
     string OutRef,
     ulong Slot,
     string SpentTxHash,
+    ulong? SpentSlot,
     string Address,
     byte[] OutputRaw
 ) : IReducerModel;

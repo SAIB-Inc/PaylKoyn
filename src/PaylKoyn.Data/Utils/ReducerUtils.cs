@@ -6,7 +6,7 @@ namespace PaylKoyn.Data.Utils;
 
 public static class ReducerUtils
 {
-    public static bool IsRelevantAddress(TransactionOutput output, out string bech32Address)
+    public static bool TryGetBech32Address(in TransactionOutput output, out string bech32Address)
     {
         bech32Address = string.Empty;
 

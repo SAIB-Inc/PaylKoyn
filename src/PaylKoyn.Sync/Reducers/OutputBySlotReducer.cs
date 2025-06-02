@@ -6,6 +6,7 @@ using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
 using Chrysalis.Cbor.Serialization;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using PaylKoyn.Data.Models;
 using PaylKoyn.Data.Models.Entity;
 using PaylKoyn.Data.Utils;
@@ -20,7 +21,25 @@ public class OutputBySlotReducer(
     public async Task RollBackwardAsync(ulong slot)
     {
         await using PaylKoynDbContext dbContext = await dbContextFactory.CreateDbContextAsync();
-        await dbContext.OutputsBySlot.Where(e => e.Slot >= slot).ExecuteDeleteAsync();
+        await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync();
+        try
+        {
+            await dbContext.OutputsBySlot.Where(e => e.Slot >= slot).ExecuteDeleteAsync();
+
+            await dbContext.OutputsBySlot
+                .Where(e => e.Slot < slot && e.SpentSlot >= slot)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(e => e.SpentTxHash, string.Empty)
+                    .SetProperty(e => e.SpentSlot, (ulong?)null)
+                );
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task RollForwardAsync(Block block)
@@ -62,12 +81,13 @@ public class OutputBySlotReducer(
                 obtx.outputs
                 .Select((Output, Index) =>
                 {
-                    if (!ReducerUtils.IsRelevantAddress(Output, out string bech32Address)) return null;
+                    if (!ReducerUtils.TryGetBech32Address(Output, out string bech32Address)) return null;
 
                     OutputBySlot newEntry = new(
                         Slot: currentSlot,
                         OutRef: obtx.txHash + "#" + Index,
                         SpentTxHash: string.Empty,
+                        SpentSlot: null,
                         Address: bech32Address,
                         OutputRaw: Output.Raw.HasValue ? Output.Raw.Value.ToArray() : CborSerializer.Serialize(Output)
                     );

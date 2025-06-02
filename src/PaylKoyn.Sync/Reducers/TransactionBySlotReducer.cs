@@ -33,18 +33,21 @@ public class TransactionBySlotReducer(
 
         IEnumerable<TransactionBySlot> newEntries = transactions.Select((transaction, index) =>
         {
-            AuxiliaryData? data = auxiliaryData.TryGetValue(index, out AuxiliaryData? auxData) ? auxData : null;
-            if (data is null) return null;
+            if (auxiliaryData.TryGetValue(index, out AuxiliaryData? auxData))
+            {
+                Metadata metadata = auxData.Metadata()!;
+                if (metadata.Value().TryGetValue(_transactionMetadatumKey, out TransactionMetadatum? txMetadatum))
+                {
+                    return new TransactionBySlot(
+                        Hash: transaction.Hash(),
+                        Slot: currentSlot,
+                        Metadata: CborSerializer.Serialize(txMetadatum),
+                        Body: CborSerializer.Serialize(transaction)
+                    );
+                }
+            }
 
-            TransactionMetadatum? txMetadatum = data?.Metadata()?.Value().FirstOrDefault(e => e.Key == _transactionMetadatumKey).Value;
-            if (txMetadatum is null) return null;
-
-            return new TransactionBySlot(
-                Hash: transaction.Hash(),
-                Slot: currentSlot,
-                Metadata: CborSerializer.Serialize(txMetadatum),
-                Body: CborSerializer.Serialize(transaction)
-            );
+            return null;
         }).Where(x => x is not null)!;
 
         dbContext.TransactionsBySlot.AddRange(newEntries);
