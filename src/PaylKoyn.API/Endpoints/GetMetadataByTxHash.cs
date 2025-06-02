@@ -54,19 +54,17 @@ public class GetMetadataByTxHash(IDbContextFactory<PaylKoynDbContext> dbContextF
                 return new TransactionMetadatumResponse
                 {
                     Key = kv.Key,
-                    Value = value switch
-                    {
-                        MetadatumMap map => map.Value.ToDictionary(m => m.Key, m => m.Value),
-                        MetadatumList list => list.Value.Select(m => m).ToList(),
-                        _ => value
-                    }
+                    Value = TransactionMetadatumUtils.DeserializeMetadatum(value) ?? "null"
                 };
             })
             .ToList();
 
         await SendOkAsync(metadata, cancellation: ct);
     }
+
 }
+
+
 
 public class TransactionMetadatumResponse
 {
