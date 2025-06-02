@@ -7,6 +7,7 @@ using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models;
+using PaylKoyn.Data.Models.Api.Response.Data;
 using PaylKoyn.Data.Models.Common;
 using PaylKoyn.Data.Models.Entity;
 using PaylKoyn.Data.Utils;
@@ -47,27 +48,59 @@ public class GetMetadataByTxHash(IDbContextFactory<PaylKoynDbContext> dbContextF
 
         CMetadata? metadata = CborSerializer.Deserialize<CMetadata>(tx.Metadata);
         Dictionary<ulong, TransactionMetadatum> metadataDict = metadata.Value();
-        var response = metadataDict
+        IEnumerable<TransactionMetadatumResponse> response = [.. metadataDict
             .Select(kv =>
             {
                 TransactionMetadatum value = kv.Value;
                 return new TransactionMetadatumResponse
                 {
                     Key = kv.Key,
-                    Value = TransactionMetadatumUtils.DeserializeMetadatum(value) ?? "null"
+                    Value = DeserializeMetadatum(value) ?? "null"
                 };
-            })
-            .ToList();
+            })];
 
-        await SendOkAsync(metadata, cancellation: ct);
+        await SendOkAsync(response, cancellation: ct);
     }
 
-}
+    public static object? DeserializeMetadatum(TransactionMetadatum? metadatum)
+    {
+        return metadatum switch
+        {
+            null => null,
 
+            MetadatumMap map => DeserializeMap(map),
+            MetadatumList list => DeserializeList(list),
+            MetadatumBytes bytes => Convert.ToHexStringLower(bytes.Value),
+            MetadataText text => text.Value,
+            MetadatumIntLong longInt => longInt.Value,
+            MetadatumIntUlong ulongInt => ulongInt.Value,
 
+            _ => throw new ArgumentException($"Unknown TransactionMetadatum type: {metadatum.GetType().Name}")
+        };
+    }
 
-public class TransactionMetadatumResponse
-{
-    public ulong Key { get; set; }
-    public object Value { get; set; } = null!;
+    private static Dictionary<object, object> DeserializeMap(MetadatumMap map)
+    {
+        Dictionary<object, object> result = [];
+
+        foreach (KeyValuePair<TransactionMetadatum, TransactionMetadatum> kvp in map.Value)
+        {
+            object? key = DeserializeMetadatum(kvp.Key);
+            object? value = DeserializeMetadatum(kvp.Value);
+
+            object finalKey = key ?? "null";
+            object finalValue = value ?? "null";
+
+            result[finalKey] = finalValue;
+        }
+
+        return result;
+    }
+
+    private static List<object> DeserializeList(MetadatumList list)
+    {
+        return [.. list.Value
+            .Select(DeserializeMetadatum)
+            .Select(item => item ?? "null")];
+    }
 }
