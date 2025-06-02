@@ -2,30 +2,23 @@ using Paylkoyn.ImageGen.Utils;
 
 namespace Paylkoyn.ImageGen.Services;
 
-public record NftConfig(List<AttributeGroup> AttributeGroups, Dictionary<string, (int IncludeWeight, int NoneWeight)> OptionalCategories);
-public record AttributeGroup(string Name, int Weight, string[] Categories, string? FileName = null);
-public record TraitLayer(int Layer, string FileName);
+public record AttributeGroup(string Name, string[] Categories);
 public record NftTrait(int Layer, string Category, string TraitName);
 
-public class NftRandomizerService
+public class NftRandomizerService(IConfiguration configuration)
 {
-    private static readonly NftConfig _config = new(
-        AttributeGroups: [
-            new("Pinky Pie", 3, ["background", "body", "clothing", "eyes", "hat"]),
-            new("Pyro", 10, ["background", "body", "clothing", "eyes", "hat"]),
-            new("Rocker", 10, ["background", "body", "clothing", "eyes", "hat"]),
-            new("Zest", 10, ["background", "body", "eyes", "hat"]),
-            new("Base", 15, ["background", "body", "eyes", "lineart"])
-        ],
-        OptionalCategories: new Dictionary<string, (int, int)>
-        {
-            ["clothing"] = (1, 1),
-            ["hat"] = (1, 1)
-        }
-    );
+    private static readonly List<string> _allCategories = ["background", "body", "lineart", "clothing", "eyes", "hat"];
+    private static readonly List<AttributeGroup> _attributeGroups = [
+        new("Pinky Pie", [.. _allCategories.Except(["lineart"])]),
+        new("Pyro", [.. _allCategories.Except(["lineart"])]),
+        new("Rocker", [.. _allCategories.Except(["lineart"])]),
+        new("Zest", [.. _allCategories.Except(["lineart", "clothing"])]),
+        new("Base", [.. _allCategories.Except(["clothing", "hat"])]),
+    ];
+    private static readonly Random _random = Random.Shared;
 
     private const string BasePath = "./Assets";
-    private static readonly Random _random = Random.Shared;
+    private readonly Dictionary<string, int> _weights = configuration.GetValue<Dictionary<string, int>>("NftWeights") ?? [];
 
     public byte[] GenerateRandomNFT(IEnumerable<NftTrait> traits, string? outputPath = null)
     {
@@ -47,56 +40,47 @@ public class NftRandomizerService
     {
         List<NftTrait> selectedTraits = [];
 
-        // Define all possible categories (including lineart now)
-        string[] allCategories = ["background", "body", "lineart", "clothing", "eyes", "hat"];
-
-        foreach (string category in allCategories)
+        foreach (string category in _allCategories)
         {
-            if (ShouldSkipOptionalCategory(category))
+            if (category == "lineart")
             {
-                continue;
-            }
-
-            List<AttributeGroup> availableGroups = [.. _config.AttributeGroups.Where(g => g.Categories.Contains(category))];
-
-            if (availableGroups.Count > 0)
-            {
-                AttributeGroup selectedGroup = SelectRandomAttributeGroup(availableGroups);
-
+                // Special case: always use Base for lineart
                 selectedTraits.Add(new NftTrait(
                     Layer: GetLayerNumber(category),
                     Category: category,
-                    TraitName: selectedGroup.Name
+                    TraitName: "Base"
                 ));
+            }
+            else
+            {
+                // Roll to select any group (regardless of whether they have this category)
+                AttributeGroup selectedGroup = SelectRandomAttributeGroup(_attributeGroups);
+
+                // Check if the selected group has this category
+                if (selectedGroup.Categories.Contains(category))
+                {
+                    selectedTraits.Add(new NftTrait(
+                        Layer: GetLayerNumber(category),
+                        Category: category,
+                        TraitName: selectedGroup.Name
+                    ));
+                }
+                // If selected group doesn't have this category = no trait
             }
         }
 
         return selectedTraits.OrderBy(t => t.Layer);
     }
 
-    private static string ConvertToKebabCase(string name) => name.ToLowerInvariant().Replace(' ', '-');
-
-    private static bool ShouldSkipOptionalCategory(string category)
+    private AttributeGroup SelectRandomAttributeGroup(List<AttributeGroup> availableGroups)
     {
-        if (!_config.OptionalCategories.TryGetValue(category, out (int IncludeWeight, int NoneWeight) weights))
-            return false; // Not optional, always include
-
-        int totalWeight = weights.IncludeWeight + weights.NoneWeight;
-        int randomValue = _random.Next(1, totalWeight + 1);
-
-        // If random falls within NoneWeight range (from IncludeWeight+1 to total), skip
-        return randomValue > weights.IncludeWeight;
-    }
-
-    private static AttributeGroup SelectRandomAttributeGroup(List<AttributeGroup> availableGroups)
-    {
-        int totalWeight = availableGroups.Sum(g => g.Weight);
+        int totalWeight = availableGroups.Sum(g => GetWeight(g.Name));
         int randomValue = _random.Next(1, totalWeight + 1);
 
         int cumulativeWeight = 0;
         foreach (AttributeGroup group in availableGroups)
         {
-            cumulativeWeight += group.Weight;
+            cumulativeWeight += GetWeight(group.Name);
             if (randomValue <= cumulativeWeight)
             {
                 return group;
@@ -108,16 +92,19 @@ public class NftRandomizerService
 
     private static string BuildFilePath(string category, string traitName)
     {
-        AttributeGroup? attributeGroup = _config.AttributeGroups.FirstOrDefault(g => g.Name == traitName);
+        AttributeGroup? attributeGroup = _attributeGroups.FirstOrDefault(g => g.Name == traitName);
         if (attributeGroup != null && attributeGroup.Categories.Contains(category))
         {
-            // Use custom filename or convert name to kebab-case
-            string fileName = attributeGroup.FileName ?? ConvertToKebabCase(attributeGroup.Name);
+            string fileName = ConvertToKebabCase(attributeGroup.Name);
             return $"{BasePath}/{category}/{category}-{fileName}.png";
         }
 
         return string.Empty;
     }
+
+    private static string ConvertToKebabCase(string name) => name.ToLowerInvariant().Replace(' ', '-');
+
+    private int GetWeight(string groupName) => _weights.GetValueOrDefault(groupName, 1);
 
     private static int GetLayerNumber(string category) => category switch
     {
