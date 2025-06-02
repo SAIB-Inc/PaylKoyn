@@ -2,87 +2,131 @@ using Paylkoyn.ImageGen.Utils;
 
 namespace Paylkoyn.ImageGen.Services;
 
-public record NftConfig(Dictionary<string, TraitCategory> Categories);
-
-public record TraitCategory(int Layer, List<TraitOption> Options);
-
-public record TraitOption(string Name, string Path, double Chance);
-
+public record NftConfig(List<AttributeGroup> AttributeGroups, Dictionary<string, (int IncludeWeight, int NoneWeight)> OptionalCategories);
+public record AttributeGroup(string Name, int Weight, string[] Categories, string? FileName = null);
+public record TraitLayer(int Layer, string FileName);
 public record NftTrait(int Layer, string Category, string TraitName);
 
-public class NftRandomizerService(IConfiguration config)
+public class NftRandomizerService
 {
-    private readonly NftConfig _config = new(config.GetSection("NftTraits").Get<Dictionary<string, TraitCategory>>() ?? []);
-    private readonly Random _random = new();
-
-    public IEnumerable<NftTrait> GenerateRandomTraits()
-    {
-        List<NftTrait> selectedTraits = [];
-
-        // Sort categories by layer to ensure proper ordering
-        List<KeyValuePair<string, TraitCategory>> sortedCategories = [.. _config.Categories.OrderBy(kvp => kvp.Value.Layer)];
-
-        // Go through each category in layer order
-        foreach (KeyValuePair<string, TraitCategory> category in sortedCategories)
+    private static readonly NftConfig _config = new(
+        AttributeGroups: [
+            new("Pinky Pie", 3, ["background", "body", "clothing", "eyes", "hat"]),
+            new("Pyro", 10, ["background", "body", "clothing", "eyes", "hat"]),
+            new("Rocker", 10, ["background", "body", "clothing", "eyes", "hat"]),
+            new("Zest", 10, ["background", "body", "eyes", "hat"]),
+            new("Base", 15, ["background", "body", "eyes", "lineart"])
+        ],
+        OptionalCategories: new Dictionary<string, (int, int)>
         {
-            TraitOption? selectedTrait = SelectRandomTrait(category.Value.Options);
-            if (selectedTrait != null) selectedTraits.Add(new NftTrait(
-                Layer: category.Value.Layer,
-                Category: category.Key,
-                TraitName: selectedTrait.Name
-            ));
+            ["clothing"] = (1, 1),
+            ["hat"] = (1, 1)
         }
+    );
 
-        return selectedTraits;
-    }
+    private const string BasePath = "./Assets";
+    private static readonly Random _random = Random.Shared;
 
     public byte[] GenerateRandomNFT(IEnumerable<NftTrait> traits, string? outputPath = null)
     {
         List<string> imagePaths = [];
 
-        // Go through each sorted trait
-        foreach (NftTrait trait in traits.OrderBy(t => t.Layer))
+        foreach (NftTrait? trait in traits.OrderBy(t => t.Layer))
         {
-            // Find the corresponding category
-            if (_config.Categories.TryGetValue(trait.Category, out TraitCategory? category))
+            string fullPath = BuildFilePath(trait.Category, trait.TraitName);
+            if (!string.IsNullOrEmpty(fullPath))
             {
-                // Find the trait option by name
-                TraitOption? option = category.Options.FirstOrDefault(o => o.Name == trait.TraitName);
-                if (option != null)
-                {
-                    imagePaths.Add(option.Path); // Add the image path to the list
-                }
+                imagePaths.Add(fullPath);
             }
         }
 
         return ImageUtil.CombineImages([.. imagePaths], outputPath);
     }
 
-    private TraitOption? SelectRandomTrait(List<TraitOption> traitOptions)
+    public IEnumerable<NftTrait> GenerateRandomTraits()
     {
-        if (traitOptions.Count == 0) return null;
+        List<NftTrait> selectedTraits = [];
 
-        // Calculate total probability
-        double totalProbability = traitOptions.Sum(t => t.Chance);
+        // Define all possible categories (including lineart now)
+        string[] allCategories = ["background", "body", "lineart", "clothing", "eyes", "hat"];
 
-        if (totalProbability > 100.0)
-            throw new ArgumentException($"Total probability exceeds 100% ({totalProbability:F2}%)");
-
-        // Generate random number (0.0-100.0)
-        double randomValue = _random.NextDouble() * 100.0;
-
-        // Check each trait option
-        double cumulativeProbability = 0.0;
-        foreach (TraitOption trait in traitOptions)
+        foreach (string category in allCategories)
         {
-            cumulativeProbability += trait.Chance;
-            if (randomValue <= cumulativeProbability)
+            if (ShouldSkipOptionalCategory(category))
             {
-                return trait; // This trait was selected
+                continue;
+            }
+
+            List<AttributeGroup> availableGroups = [.. _config.AttributeGroups.Where(g => g.Categories.Contains(category))];
+
+            if (availableGroups.Count > 0)
+            {
+                AttributeGroup selectedGroup = SelectRandomAttributeGroup(availableGroups);
+
+                selectedTraits.Add(new NftTrait(
+                    Layer: GetLayerNumber(category),
+                    Category: category,
+                    TraitName: selectedGroup.Name
+                ));
             }
         }
 
-        // No trait selected (falls in the "no trait" range)
-        return null;
+        return selectedTraits.OrderBy(t => t.Layer);
     }
+
+    private static string ConvertToKebabCase(string name) => name.ToLowerInvariant().Replace(' ', '-');
+
+    private static bool ShouldSkipOptionalCategory(string category)
+    {
+        if (!_config.OptionalCategories.TryGetValue(category, out (int IncludeWeight, int NoneWeight) weights))
+            return false; // Not optional, always include
+
+        int totalWeight = weights.IncludeWeight + weights.NoneWeight;
+        int randomValue = _random.Next(1, totalWeight + 1);
+
+        // If random falls within NoneWeight range (from IncludeWeight+1 to total), skip
+        return randomValue > weights.IncludeWeight;
+    }
+
+    private static AttributeGroup SelectRandomAttributeGroup(List<AttributeGroup> availableGroups)
+    {
+        int totalWeight = availableGroups.Sum(g => g.Weight);
+        int randomValue = _random.Next(1, totalWeight + 1);
+
+        int cumulativeWeight = 0;
+        foreach (AttributeGroup group in availableGroups)
+        {
+            cumulativeWeight += group.Weight;
+            if (randomValue <= cumulativeWeight)
+            {
+                return group;
+            }
+        }
+
+        return availableGroups.First();
+    }
+
+    private static string BuildFilePath(string category, string traitName)
+    {
+        AttributeGroup? attributeGroup = _config.AttributeGroups.FirstOrDefault(g => g.Name == traitName);
+        if (attributeGroup != null && attributeGroup.Categories.Contains(category))
+        {
+            // Use custom filename or convert name to kebab-case
+            string fileName = attributeGroup.FileName ?? ConvertToKebabCase(attributeGroup.Name);
+            return $"{BasePath}/{category}/{category}-{fileName}.png";
+        }
+
+        return string.Empty;
+    }
+
+    private static int GetLayerNumber(string category) => category switch
+    {
+        "background" => 1,
+        "body" => 2,
+        "lineart" => 3,
+        "clothing" => 4,
+        "eyes" => 5,
+        "hat" => 6,
+        _ => 99
+    };
 }
