@@ -13,8 +13,18 @@ public partial class Upload
     [Inject]
     public required UploadService UploadService { get; set; }
 
+    [Inject]
+    public required NavigationManager Navigation { get; set; }
+
     protected readonly List<UploadFileState> FileList = [];
     protected string? UploadAddress;
+
+    #region Open Graph Tags
+
+    protected string OgUrl => $"{Navigation.BaseUri}{Navigation.ToBaseRelativePath(Navigation.Uri)}";
+    protected string OgImageUrl => $"{Navigation.BaseUri}images/paylkoyn_og.webp";
+
+    #endregion
 
     protected override async Task OnInitializedAsync()
     {
