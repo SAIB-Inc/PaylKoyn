@@ -14,7 +14,6 @@ public partial class Upload
     public required UploadService UploadService { get; set; }
 
     protected readonly List<UploadFileState> FileList = [];
-    protected bool IsOnDragged = false;
     protected string? UploadAddress;
 
     protected override async Task OnInitializedAsync()

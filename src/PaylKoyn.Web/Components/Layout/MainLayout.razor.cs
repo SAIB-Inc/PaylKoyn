@@ -8,7 +8,10 @@ public partial class MainLayout
         PaletteLight = new()
         {
             Background = "#5438DC",
-            Primary = "#FFFFFF"
+            Primary = "#FFFFFF",
+            Secondary = "#7263FA",
+            PrimaryLighten = "#998EFF",
+            PrimaryDarken = "#4B41A7"
         },
         Typography = new()
         {
