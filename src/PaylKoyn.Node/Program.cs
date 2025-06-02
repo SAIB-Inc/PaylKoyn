@@ -28,32 +28,10 @@ builder.Services.AddDbContextFactory<WalletDbContext>(options =>
 builder.Services.AddSingleton<WalletService>();
 builder.Services.AddSingleton<FileService>();
 builder.Services.AddSingleton<TransactionService>();
+builder.Services.AddSingleton<FileCacheService>();
 
 
 WebApplication app = builder.Build();
-
-// IDbContextFactory<WalletDbContext> dbContextFactory = app.Services.GetRequiredService<IDbContextFactory<WalletDbContext>>();
-// using WalletDbContext dbContext = dbContextFactory.CreateDbContext();
-// dbContext.Database.Migrate();
-
-// var walletService = app.Services.GetRequiredService<WalletService>();
-// var fileService = app.Services.GetRequiredService<FileService>();
-// var wallet = await walletService.GenerateWalletAsync();
-// var privateKey = walletService.GetPaymentPrivateKey(wallet.Index);
-// var fileContent = Encoding.ASCII.GetBytes(string.Join(",", Enumerable.Range(0, 5000).Select(i => "Hello, World!")));
-// var fileContentSize = fileContent.Length;
-// Console.WriteLine($"File content size: {fileContentSize} bytes");
-// var contentType = "text/plain";
-// var fileName = "testfile.txt";
-
-// try
-// {
-//     await fileService.UploadAsync(wallet.Address, fileContent, contentType, fileName, privateKey);
-// }
-// catch (Exception ex)
-// {
-//     Console.WriteLine($"Error during file upload: {ex.Message}");
-// }
 
 if (app.Environment.IsDevelopment())
 {
