@@ -4,6 +4,8 @@ VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PaylKoyn.ImageGen", "src\PaylKoyn.ImageGen\PaylKoyn.ImageGen.csproj", "{2343A968-D96D-4199-4218-273BE99A3AA9}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PaylKoyn.Web", "src\PaylKoyn.Web\PaylKoyn.Web.csproj", "{B7C67E96-4F7D-EAFF-9B2A-37C776113530}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PaylKoyn.API", "src\PaylKoyn.API\PaylKoyn.API.csproj", "{6FD0565A-71F6-8647-2E27-D2E9819C779E}"
@@ -20,6 +22,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2343A968-D96D-4199-4218-273BE99A3AA9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2343A968-D96D-4199-4218-273BE99A3AA9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2343A968-D96D-4199-4218-273BE99A3AA9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2343A968-D96D-4199-4218-273BE99A3AA9}.Release|Any CPU.Build.0 = Release|Any CPU
 		{B7C67E96-4F7D-EAFF-9B2A-37C776113530}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B7C67E96-4F7D-EAFF-9B2A-37C776113530}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B7C67E96-4F7D-EAFF-9B2A-37C776113530}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -45,6 +51,7 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{2343A968-D96D-4199-4218-273BE99A3AA9} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{B7C67E96-4F7D-EAFF-9B2A-37C776113530} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{6FD0565A-71F6-8647-2E27-D2E9819C779E} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{1DF6F086-B119-E54A-01B5-BA27FB9C51C4} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
@@ -52,6 +59,6 @@ Global
 		{664C2C1B-040D-1BEE-7B32-4C8574E4B8E2} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {EB756DA8-8E06-4F62-988B-90AAF0CECF6D}
+		SolutionGuid = {D7E125B8-FF9E-4393-A50D-12CE4F18FF77}
 	EndGlobalSection
 EndGlobal
