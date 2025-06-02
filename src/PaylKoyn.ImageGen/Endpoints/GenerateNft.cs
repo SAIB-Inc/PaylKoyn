@@ -3,9 +3,7 @@ using Paylkoyn.ImageGen.Services;
 
 namespace PaylKoyn.ImageGen.Endpoints;
 
-public record GenerateNftRequest(IEnumerable<NftTrait> Traits, string? FileName = null, string? OutputPath = null);
-
-public class GenerateNft(NftRandomizerService nftRandomizerService) : Endpoint<GenerateNftRequest>
+public class GenerateNft(NftRandomizerService nftRandomizerService) : Endpoint<List<NftTrait>>
 {
     public override void Configure()
     {
@@ -17,10 +15,10 @@ public class GenerateNft(NftRandomizerService nftRandomizerService) : Endpoint<G
             .WithDescription("This endpoint generates an NFT image based on the provided traits."));
     }
 
-    public override async Task HandleAsync(GenerateNftRequest req, CancellationToken ct)
+    public override async Task HandleAsync(List<NftTrait> req, CancellationToken ct)
     {
-        byte[] result = nftRandomizerService.GenerateRandomNFT(req.Traits);
-        string fileName = req.FileName ?? $"nft_{DateTime.UtcNow:yyyyMMdd_HHmmss}.png";
+        byte[] result = nftRandomizerService.GenerateRandomNFT(req);
+        string fileName = $"nft_{DateTime.UtcNow:yyyyMMdd_HHmmss}.png";
 
         using MemoryStream stream = new(result);
         await SendStreamAsync(stream, fileName, cancellation: ct);
