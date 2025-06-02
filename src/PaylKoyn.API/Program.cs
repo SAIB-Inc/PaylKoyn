@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models;
@@ -33,6 +34,8 @@ app.UseFastEndpoints(c =>
     c.Versioning.Prefix = "v";
     c.Versioning.DefaultVersion = 1;
     c.Versioning.PrependToRoute = true;
+    c.Serializer.Options.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+    c.Serializer.Options.WriteIndented = true;
 });
 
 app.Run();

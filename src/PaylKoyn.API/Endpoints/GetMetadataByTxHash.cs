@@ -52,11 +52,8 @@ public class GetMetadataByTxHash(IDbContextFactory<PaylKoynDbContext> dbContextF
             .Select(kv =>
             {
                 TransactionMetadatum value = kv.Value;
-                return new TransactionMetadatumResponse
-                {
-                    Key = kv.Key,
-                    Value = DeserializeMetadatum(value) ?? "null"
-                };
+
+                return new TransactionMetadatumResponse(kv.Key.ToString(), DeserializeMetadatum(value) ?? "null");
             })];
 
         await SendOkAsync(response, cancellation: ct);
