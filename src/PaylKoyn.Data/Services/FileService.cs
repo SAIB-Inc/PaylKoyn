@@ -47,8 +47,9 @@ public class FileService(
         ulong amount = utxos.Aggregate(0UL, (sum, utxo) => sum + utxo.Output.Amount().Lovelace());
         logger.LogInformation("Found {UtxoCount} UTXOs with total amount: {TotalAmount} lovelace", utxos.Count(), amount);
 
+        Chrysalis.Network.Cbor.LocalStateQuery.ProtocolParams protocolParams = await cardanoDataProvider.GetParametersAsync();
         // Calculate required fee for the file upload
-        ulong requiredFee = transactionService.CalculateFee(file.Length, _revenueFee);
+        ulong requiredFee = transactionService.CalculateFee(file.Length, _revenueFee, protocolParams.MaxTransactionSize ?? 16384);
         logger.LogInformation("Calculated required fee: {RequiredFee} lovelace for file size: {FileSize} bytes", requiredFee, file.Length);
 
         // Validate that payment is sufficient
@@ -61,7 +62,6 @@ public class FileService(
         logger.LogInformation("Payment validation successful. Proceeding with upload.");
 
         logger.LogInformation("Preparing transaction to upload file: {FileName}", fileName);
-        Chrysalis.Network.Cbor.LocalStateQuery.ProtocolParams protocolParams = await cardanoDataProvider.GetParametersAsync();
         List<Transaction> txs = transactionService.UploadFile(
             address,
             file,
