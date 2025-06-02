@@ -57,7 +57,7 @@ public class OutputBySlotReducer(
 
         IEnumerable<string> inputs = transactions.SelectMany(tx =>
             tx.Inputs().Select(input => $"{Convert.ToHexStringLower(input.TransactionId)}#{input.Index}"));
-        
+
         IEnumerable<OutputBySlot> resolvedInputs = await dbContext.OutputsBySlot
             .AsNoTracking()
             .Where(e => inputs.Contains(e.OutRef))
@@ -65,7 +65,7 @@ public class OutputBySlotReducer(
             .ToListAsync();
 
         ProcessOutputs(outputsByTx, currentSlot, dbContext);
-        ProcessInputs(resolvedInputs, transactions, dbContext);
+        ProcessInputs(resolvedInputs, transactions, currentSlot, dbContext);
 
         await dbContext.SaveChangesAsync();
     }
@@ -103,6 +103,7 @@ public class OutputBySlotReducer(
     private static void ProcessInputs(
         IEnumerable<OutputBySlot> resolvedInputs,
         IEnumerable<TransactionBody> transactions,
+        ulong currentSlot,
         PaylKoynDbContext dbContext
     )
     {
@@ -122,10 +123,10 @@ public class OutputBySlotReducer(
 
             if (existingOutput != null) return null;
 
-            return resolvedInputByTx.resolvedInput with { SpentTxHash = resolvedInputByTx.spentTxHash };
+            return resolvedInputByTx.resolvedInput with { SpentTxHash = resolvedInputByTx.spentTxHash, SpentSlot = currentSlot };
         })
         .Where(e => e != null)!;
-        
+
         dbContext.UpdateRange(updatedOutputs);
     }
 }
