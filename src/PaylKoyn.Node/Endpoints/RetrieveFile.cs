@@ -41,7 +41,7 @@ public class RetrieveFile(ICardanoDataProvider blockfrost, FileCacheService cach
                 var (fileBytes, contentType, fileName) = cachedFile.Value;
                 HttpContext.Response.Headers.Append("Content-Disposition", $"inline; filename=\"{fileName}\"");
                 HttpContext.Response.ContentType = contentType;
-                await SendBytesAsync(fileBytes, cancellation: ct);
+                await HttpContext.Response.Body.WriteAsync(fileBytes, ct);
                 return;
             }
 
@@ -57,15 +57,18 @@ public class RetrieveFile(ICardanoDataProvider blockfrost, FileCacheService cach
             // Cache the file
             await cacheService.CacheFileAsync(req.TxHash, retrievedBytes, retrievedContentType, retrievedFileName);
             
-            // Set response headers
             HttpContext.Response.Headers.Append("Content-Disposition", $"inline; filename=\"{retrievedFileName}\"");
             HttpContext.Response.ContentType = retrievedContentType;
-            
-            await SendBytesAsync(retrievedBytes, cancellation: ct);
+            await HttpContext.Response.Body.WriteAsync(retrievedBytes, ct);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            await SendErrorsAsync(500, cancellation: ct);
+            Console.WriteLine($"Error in RetrieveFile: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            if (!HttpContext.Response.HasStarted)
+            {
+                await SendErrorsAsync(500, cancellation: ct);
+            }
         }
     }
 
