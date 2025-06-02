@@ -27,7 +27,7 @@ public class TransactionService()
         string revenueAddress
     )
     {
-        int _maxTxSize = (int)(protocolParams.MaxTransactionSize ?? 16384) - 107;
+        int _maxTxSize = (int)(protocolParams.MaxTransactionSize ?? 16384) - 300;
         Transaction initialTx = UploadFileTxBuilder(address, file, fileName, contentType, "", inputs, protocolParams, true, HashUtil.Blake2b256(file));
         byte[] initialTxCborBytes = CborSerializer.Serialize(initialTx);
         int initialTxSize = initialTxCborBytes.Length;
@@ -37,43 +37,8 @@ public class TransactionService()
             return [initialTx];
         }
 
-        int splitCount = (int)Math.Ceiling((double)initialTxSize / _maxTxSize) + 1; // 52.9 53
+        return BuildTransactions(address, file, fileName, contentType, inputs, protocolParams, revenueAddress, _maxTxSize);
 
-        List<byte[]> fileChunks = SplitFile(file, splitCount);
-        fileChunks.Reverse();
-
-        List<Transaction> transactions = [];
-        string next = "";
-
-        int index = 0;
-        foreach (byte[] chunk in fileChunks)
-        {
-            bool isLastChunk = index == fileChunks.Count - 1;
-
-            PostMaryTransaction chunkTx = (PostMaryTransaction)UploadFileTxBuilder(
-                isLastChunk ? revenueAddress : address,
-                chunk,
-                fileName,
-                contentType,
-                next,
-                inputs,
-                protocolParams,
-                isLastChunk,
-                isLastChunk ? HashUtil.Blake2b256(file) : null
-            );
-
-            byte[] chunkTxCborBytes = CborSerializer.Serialize(chunkTx);
-            byte[] chunkTxBodyBytes = CborSerializer.Serialize(chunkTx.TransactionBody);
-            byte[] chunkTxHash = HashUtil.Blake2b256(chunkTxBodyBytes);
-            next = Convert.ToHexString(chunkTxHash);
-
-            TransactionOutput chunkOutput = chunkTx.TransactionBody.Outputs().FirstOrDefault()!;
-            inputs = [new ResolvedInput(new TransactionInput(chunkTxHash, 0), chunkOutput)];
-            transactions.Add(chunkTx);
-            index++;
-        }
-
-        return transactions;
     }
 
     public ulong CalculateFee(
@@ -175,6 +140,113 @@ public class TransactionService()
         return transaction;
     }
 
+    private static List<Transaction> BuildTransactions(
+       string address,
+       byte[] file,
+       string fileName,
+       string contentType,
+       List<ResolvedInput> inputs,
+       ProtocolParams protocolParams,
+       string revenueAddress,
+       int maxTxSize
+   )
+    {
+        List<byte[]> fileChunks = [];
+        byte[] currentBuffer = [];
+        int filePosition = 0;
+
+        const int baseChunkSize = 64;
+
+        while (filePosition < file.Length)
+        {
+            bool keepAdding = true;
+
+            while (keepAdding && filePosition < file.Length)
+            {
+                int remainingBytes = file.Length - filePosition;
+                int chunkSize = Math.Min(baseChunkSize, remainingBytes);
+
+                byte[] newChunk = new byte[chunkSize];
+                Buffer.BlockCopy(file, filePosition, newChunk, 0, chunkSize);
+
+                byte[] testBuffer = new byte[currentBuffer.Length + newChunk.Length];
+                Buffer.BlockCopy(currentBuffer, 0, testBuffer, 0, currentBuffer.Length);
+                Buffer.BlockCopy(newChunk, 0, testBuffer, currentBuffer.Length, newChunk.Length);
+
+                Transaction testTx = UploadFileTxBuilder(
+                    address,
+                    testBuffer,
+                    fileName,
+                    contentType,
+                    "",
+                    inputs,
+                    protocolParams,
+                    false,
+                    null
+                );
+
+                byte[] testTxCborBytes = CborSerializer.Serialize(testTx);
+                int testTxSize = testTxCborBytes.Length;
+
+                if (testTxSize > maxTxSize)
+                {
+                    if (currentBuffer.Length == 0)
+                    {
+                        currentBuffer = newChunk;
+                        filePosition += chunkSize;
+                    }
+                    keepAdding = false;
+                }
+                else
+                {
+                    currentBuffer = testBuffer;
+                    filePosition += chunkSize;
+                }
+            }
+
+            if (currentBuffer.Length > 0)
+            {
+                fileChunks.Add(currentBuffer);
+                currentBuffer = [];
+            }
+        }
+
+        fileChunks.Reverse();
+
+        List<Transaction> transactions = [];
+        string next = "";
+
+        int index = 0;
+        foreach (byte[] chunk in fileChunks)
+        {
+            bool isLastChunk = index == fileChunks.Count - 1;
+
+            PostMaryTransaction chunkTx = (PostMaryTransaction)UploadFileTxBuilder(
+                isLastChunk ? revenueAddress : address,
+                chunk,
+                fileName,
+                contentType,
+                next,
+                inputs,
+                protocolParams,
+                isLastChunk,
+                isLastChunk ? HashUtil.Blake2b256(file) : null
+            );
+
+            byte[] chunkTxBodyBytes = CborSerializer.Serialize(chunkTx.TransactionBody);
+            byte[] chunkTxHash = HashUtil.Blake2b256(chunkTxBodyBytes);
+            next = Convert.ToHexString(chunkTxHash);
+
+            TransactionOutput chunkOutput = chunkTx.TransactionBody.Outputs().FirstOrDefault()!;
+            inputs = [new ResolvedInput(new TransactionInput(chunkTxHash, 0), chunkOutput)];
+
+            transactions.Add(chunkTx);
+            index++;
+        }
+
+        return transactions;
+    }
+
     private static List<byte[]> SplitFile(byte[] file, int splitCount)
     {
         List<byte[]> result = new(splitCount);
@@ -196,5 +268,4 @@ public class TransactionService()
         return result;
 
     }
-
 }
