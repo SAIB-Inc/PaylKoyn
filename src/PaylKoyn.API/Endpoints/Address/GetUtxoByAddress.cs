@@ -68,7 +68,7 @@ public class GetUtxoByAddress(
 
                 amounts.Add(new Amount(
                     Unit: "lovelace",
-                    Quantity: txOutput.Amount().Lovelace()
+                    Quantity: txOutput.Amount().Lovelace().ToString()
                 ));
 
                 Dictionary<byte[], TokenBundleOutput> multiAssets = txOutput.Amount().MultiAsset();
@@ -77,7 +77,7 @@ public class GetUtxoByAddress(
                     IEnumerable<Amount> assetAmounts = multiAssets
                         .SelectMany(policyAssets => policyAssets.Value.Value.Select(asset => new Amount(
                             Unit: Convert.ToHexStringLower(policyAssets.Key) + Convert.ToHexStringLower(asset.Key),
-                            Quantity: asset.Value
+                            Quantity: asset.Value.ToString()
                         )));
                     
                     amounts.AddRange(assetAmounts);
@@ -86,7 +86,7 @@ public class GetUtxoByAddress(
                 return new UnspentOutput(
                     Address: address!,
                     TxHash: txHash,
-                    Index: index,
+                    OutputIndex: index,
                     Amount: amounts,
                     Block: outputBySlot.BlockHash,
                     DataHash: outputBySlot.ScriptHash,

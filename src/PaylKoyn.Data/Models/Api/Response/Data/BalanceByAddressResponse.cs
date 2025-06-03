@@ -8,7 +8,7 @@ public record BalanceByAddressResponse(
 public record UnspentOutput(
     string Address,
     string TxHash,
-    ulong Index,
+    ulong OutputIndex,
     IEnumerable<Amount> Amount,
     string Block,
     string? DataHash,
@@ -18,5 +18,5 @@ public record UnspentOutput(
 
 public record Amount(
     string Unit,
-    ulong Quantity
+    string Quantity
 );
