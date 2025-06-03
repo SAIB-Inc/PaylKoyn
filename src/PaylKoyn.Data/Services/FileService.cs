@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Common;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
-using Chrysalis.Cbor.Serialization;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using Chrysalis.Tx.Extensions;
 using Chrysalis.Tx.Models;
@@ -29,11 +28,11 @@ public class FileService(
     private readonly string _tempFilePath = configuration["File:TempFilePath"] ?? "/tmp";
     private readonly int _submissionRetries =
         int.TryParse(configuration["File:SubmissionRetries"], out int retries) ? retries : 3;
-    private readonly ulong _revenueFee = 
+    private readonly ulong _revenueFee =
         ulong.TryParse(configuration["File:RevenueFee"], out ulong revenueFee) ? revenueFee : 2_000_000UL;
 
 
-    public async Task<bool> UploadAsync(string address, byte[] file, string contentType, string fileName, PrivateKey paymentPrivateKey)
+    public async Task<string> UploadAsync(string address, byte[] file, string contentType, string fileName, PrivateKey paymentPrivateKey)
     {
         if (string.IsNullOrWhiteSpace(address))
             throw new ArgumentException("Address cannot be null or empty.", nameof(address));
@@ -73,6 +72,7 @@ public class FileService(
         );
 
         ulong totalFee = 0;
+        string adaFsTxHash = string.Empty;
         foreach (Transaction tx in txs)
         {
             logger.LogInformation("Signing transaction");
@@ -88,6 +88,7 @@ public class FileService(
                 try
                 {
                     string txHash = await cardanoDataProvider.SubmitTransactionAsync(signedTx);
+                    adaFsTxHash = txHash;
                     logger.LogInformation("Transaction submitted successfully: {TransactionId}", txHash);
                     break;
                 }
@@ -109,7 +110,7 @@ public class FileService(
         logger.LogInformation("Deleting temporary file: {FilePath}", tempFilePath);
         if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
 
-        return true;
+        return adaFsTxHash;
     }
 
     private async Task<IEnumerable<ResolvedInput>> WaitForUtxosAsync(string address)
