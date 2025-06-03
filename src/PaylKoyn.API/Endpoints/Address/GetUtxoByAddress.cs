@@ -90,11 +90,11 @@ public class GetUtxoByAddress(
                     OutputIndex: index,
                     Amount: amounts,
                     Block: outputBySlot.BlockHash,
-                    DataHash: outputBySlot.ScriptHash,
+                    DataHash: outputBySlot.ScriptDataHash,
                     InlineDatum: txOutput.DatumOption()?.Data() is not null
                         ? Convert.ToHexStringLower(txOutput.DatumOption()?.Data() ?? [])
                         : null,
-                    ReferenceScriptHash: outputBySlot.ScriptDataHash
+                    ReferenceScriptHash: outputBySlot.ScriptHash
                 );
             })];
 
