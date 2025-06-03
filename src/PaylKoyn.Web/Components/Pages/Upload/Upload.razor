@@ -54,64 +54,100 @@
             <div class="!p-4 md:!p-6">
                 @if(FileList!.Any())
                 {
-                    <div class="flex flex-col md:flex-row items-center gap-2">
-                        <div class="w-[183px] sm:!w-73 sm:h-75 md:!w-[231px] lg:!w-[290px] flex-shrink-0">
-                            <MudImage
-                                src="/images/qr_sample.webp"
-                                alt="sample qr"
-                            />
-                        </div>
-                        <div class="w-[100%] flex flex-col justify-between !gap-4 lg:w-[calc(100%-300px)]">
-                            <div class="w-full relative flex items-center gap-3 !p-3 bg-[var(--mud-palette-gray-darker)] rounded-2xl sm:gap-4 sm:!p-4">
-                                <div>
-                                    <MudIcon Icon="@IconService.ImageIcon" Class="!text-[30px] md:!text-[64px]"/> 
-                                </div>
-                                <div>
-                                    <div class="flex flex-wrap sm:w-full">
-                                        <MudText Class="!font-bold text-xl !text-[var(--mud-palette-text-primary)] lg:!text-2xl">NFT PAYL KOYN PINKY PIE</MudText>
+                    <div>
+                        <div class="flex flex-col md:flex-row items-center gap-2">
+                            <div class="w-[183px] aspect-square flex-shrink-0 sm:!w-73 md:!w-[231px] lg:!w-[290px] xl:!w-81">
+                                <MudImage
+                                    Src="/images/qr_sample.webp"
+                                    Alt="sample qr"
+                                    Class="w-full h-full object-contained"
+                                />
+                            </div>
+                            <div class="w-full flex flex-col justify-between !gap-3 md:!gap-1 lg:!gap-3 lg:w-[calc(100%-300px)]">
+                                <div class="w-full relative flex items-center gap-3 !p-3 bg-[var(--mud-palette-gray-darker)] rounded-2xl sm:gap-4 sm:!p-3">
+                                    <div>
+                                        <MudIcon Icon="@IconService.ImageIcon" Class="!text-[30px] md:!text-[40px] lg:!text-[64px]"/> 
                                     </div>
-                                    <div class="flex flex-row items-center md:!gap-2">
-                                        <MudText Class="text-sm !text-[var(--mud-palette-text-secondary)]  lg:text-base">64 KB of 64 KB •</MudText>
-                                        <div class="flex items-center gap-2">
-                                            <MudIcon Icon="@IconService.LoadingIcon" Class="!text-base"/>
-                                            <MudText Class="!text-left text-sm !text-[var(--mud-palette-text-primary)] lg:!text-base !font-medium">Uploading...</MudText>
+                                    <div>
+                                        <div class="flex flex-wrap sm:w-full">
+                                            <MudText Class="!font-bold text-xl !text-[var(--mud-palette-text-primary)] lg:!text-2xl">NFT PAYL KOYN PINKY PIE</MudText>
+                                        </div>
+                                        <div class="flex flex-col items-start sm:items-center sm:flex-row md:!gap-2">
+                                            <MudText Class="!text-sm !text-[var(--mud-palette-text-secondary)] md:!text-xs lg:text-base">64 KB of 64 KB •</MudText>
+                                            <div class="flex items-center gap-2">
+                                                <MudIcon Icon="@IconService.LoadingIcon" Class="!text-base md:!text-xs lg:!text-base"/>
+                                                <MudText Class="!text-left !text-sm !text-[var(--mud-palette-text-primary)] md:!text-xs lg:!text-base !font-medium">Uploading...</MudText>
+                                            </div>
                                         </div>
                                     </div>
+                                    <MudIconButton 
+                                        Icon="@IconService.DeleteIcon" 
+                                        aria-label="delete" 
+                                        Class="!p-0 absolute top-4 right-4 [&_.mud-icon-root]:!text-lg md:[&_.mud-icon-root]:!text-base lg:[&_.mud-icon-root]:!text-lg"
+                                    />
                                 </div>
-                                <MudIconButton Icon="@IconService.DeleteIcon" aria-label="delete" Class="!p-0 absolute top-4 right-4 "/>
-                            </div>
-                            <MudText Class="!text-xl !font-medium !text-[var(--mud-palette-text-primary)]">Upload Address:</MudText>
-                            <MudText Class="!text-sm !font-mono !text-[var(--mud-palette-text-primary)] break-all">@UploadAddress</MudText>
-                            
-                            <MudText Class="!text-xl !font-medium !text-[var(--mud-palette-text-primary)]">Estimated cost:</MudText>
-                            <MudText Class="!text-xl">
-                                <span class="!text-[var(--mud-palette-text-secondary)]">Total: </span>
-                                <span class="!font-bold !text-[var(--mud-palette-text-primary)]">@($"2 ADA")</span>
-                            </MudText>
-                            
-                            <MudButton 
-                                Variant="Variant.Filled" 
-                                Color="Color.Primary" 
-                                OnClick="() => UploadFile(FileList.First())"
-                                Disabled="@(FileList.First().Status == UploadStatus.Uploading)"
-                                Class="w-[339px] !bg-[var(--mud-palette-secondary)] px-6 h-8 !rounded-full !font-semibold !text-[var(--mud-palette-primary)] !text-xl !capitalize !self-center hover:!bg-[var(--mud-palette-secondary-lighten)] active:!bg-[var(--mud-palette-secondary-darken)] md:!self-start md:h-10 lg:!self-end lg:!w-[137px]">
-                                @(FileList.First().Status switch 
-                                {
-                                    UploadStatus.Ready => "Continue",
-                                    UploadStatus.Uploading => "Uploading...",
-                                    UploadStatus.Completed => "Upload Complete",
-                                    UploadStatus.Error => "Upload Failed",
-                                    _ => "Upload"
-                                })
-                            </MudButton>
-                            
-                            @if (!string.IsNullOrEmpty(FileList.First().Message))
-                            {
-                                <MudText Class="!text-sm !mt-2" Color="@(FileList.First().Status == UploadStatus.Error ? Color.Error : Color.Success)">
-                                    @FileList.First().Message
+                                <MudText Class="font-medium !text-[var(--mud-palette-text-primary)] !text-base lg:!text-xl">Upload Address:</MudText>
+                                <div class="w-full flex items-center justify-between border border-[var(--mud-palette-gray-dark)] !rounded-lg gap-2 !p-2 md:!p-1 lg:!p-3">
+                                    <MudText Class="!text-sm !font-mono !text-[var(--mud-palette-background)] break-all !truncate !text-ellipsis md:!text-xs md:!max-w-100 lg:!max-w-193
+    ">@UploadAddress</MudText> 
+                                    <MudIcon Icon="@IconService.CopyIcon" Class="!text-lg md:!text-base lg:!text-2xl"/>
+                                </div>                            
+                                <MudText Class="!font-medium !text-[var(--mud-palette-text-primary)] !text-base lg:!text-xl">Estimated cost:</MudText>
+                                <div>
+                                    <MudText>
+                                        <span class="!text-[var(--mud-palette-text-secondary)] !text-base md:!text-xs lg:!text-base">Network fee: </span>
+                                        <span class="!font-bold !text-base md:!text-xs lg:!text-base">2 ADA</span>
+                                    </MudText>
+                                    <MudText>
+                                        <span class="!text-[var(--mud-palette-text-secondary)] !text-base md:!text-xs lg:!text-base">Service fee: </span>
+                                        <span class="!font-bold !text-base md:!text-xs lg:!text-base">1 ADA</span>
+                                    </MudText>
+                                </div>
+                                <MudDivider Class=""/>
+                                <MudText Class="!text-base lg:!text-xl">
+                                    <span class="!text-[var(--mud-palette-text-secondary)] !font-bold">Total Cost: </span>
+                                    <span class="!font-bold !text-[var(--mud-palette-text-primary)]">@($"2 ADA")</span>
                                 </MudText>
-                            }
+                                
+                                <MudButton 
+                                    Variant="Variant.Filled" 
+                                    Color="Color.Primary" 
+                                    OnClick="() => UploadFile(FileList.First())"
+                                    Disabled="@(FileList.First().Status == UploadStatus.Uploading)"
+                                    Class="!bg-[var(--mud-palette-secondary)] px-6 h-10 !rounded-full !font-semibold !text-[var(--mud-palette-primary)] !text-xl !capitalize !self-center hover:!bg-[var(--mud-palette-secondary-lighten)] active:!bg-[var(--mud-palette-secondary-darken)] w-full !mt-3 md:w-[339px] md:!mt-0  md:!self-start md:h-10 lg:!self-end lg:!w-[137px] md:!hidden lg:!inline-flex">
+                                    @(FileList.First().Status switch 
+                                    {
+                                        UploadStatus.Ready => "Continue",
+                                        UploadStatus.Uploading => "Uploading...",
+                                        UploadStatus.Completed => "Upload Complete",
+                                        UploadStatus.Error => "Upload Failed",
+                                        _ => "Upload"
+                                    })
+                                </MudButton>
+                                
+                                @if (!string.IsNullOrEmpty(FileList.First().Message))
+                                {
+                                    <MudText Class="!text-sm !mt-2" Color="@(FileList.First().Status == UploadStatus.Error ? Color.Error : Color.Success)">
+                                        @FileList.First().Message
+                                    </MudText>
+                                }
+                            </div>
                         </div>
+                        <MudButton 
+                            Variant="Variant.Filled" 
+                            Color="Color.Primary" 
+                            OnClick="() => UploadFile(FileList.First())"
+                            Disabled="@(FileList.First().Status == UploadStatus.Uploading)"
+                            Class="!bg-[var(--mud-palette-secondary)] px-6 h-10 !rounded-full !font-semibold !text-[var(--mud-palette-primary)] !text-xl !capitalize !self-center hover:!bg-[var(--mud-palette-secondary-lighten)] active:!bg-[var(--mud-palette-secondary-darken)] w-full !mt-7 md:!self-start md:h-10 !hidden md:!inline-flex lg:!hidden">
+                            @(FileList.First().Status switch 
+                            {
+                                UploadStatus.Ready => "Continue",
+                                UploadStatus.Uploading => "Uploading...",
+                                UploadStatus.Completed => "Upload Complete",
+                                UploadStatus.Error => "Upload Failed",
+                                _ => "Upload"
+                            })
+                        </MudButton>
                     </div>
                 }
                 else
