@@ -30,7 +30,6 @@ builder.Services.AddSingleton<FileService>();
 builder.Services.AddSingleton<TransactionService>();
 builder.Services.AddSingleton<FileCacheService>();
 
-
 WebApplication app = builder.Build();
 
 if (app.Environment.IsDevelopment())
