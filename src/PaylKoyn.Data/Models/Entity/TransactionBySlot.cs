@@ -4,6 +4,7 @@ namespace PaylKoyn.Data.Models.Entity;
 
 public record TransactionBySlot(
     string Hash,
+    ulong Index,
     ulong Slot,
     byte[] Metadata,
     byte[] Body

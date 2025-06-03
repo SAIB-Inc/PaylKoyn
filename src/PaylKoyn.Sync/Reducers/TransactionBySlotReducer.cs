@@ -40,6 +40,7 @@ public class TransactionBySlotReducer(
             {
                 return new TransactionBySlot(
                     Hash: transaction.Hash(),
+                    Index: (ulong)index,
                     Slot: currentSlot,
                     Metadata: CborSerializer.Serialize(metadata),
                     Body: CborSerializer.Serialize(transaction)
