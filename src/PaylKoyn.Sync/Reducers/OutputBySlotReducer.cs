@@ -65,9 +65,9 @@ public class OutputBySlotReducer(
             .Where(obs => string.IsNullOrEmpty(obs.SpentTxHash))
             .ToListAsync();
 
-        resolvedInputs = resolvedInputs.Union(dbContext.OutputsBySlot.Local.Where(e => inputs.Contains(e.OutRef)));
-
         ProcessOutputs(outputsByTx, blockHash, currentSlot, dbContext);
+
+        resolvedInputs = resolvedInputs.Union(dbContext.OutputsBySlot.Local.Where(e => inputs.Contains(e.OutRef)));
         ProcessInputs(resolvedInputs, transactions, currentSlot, dbContext);
 
         await dbContext.SaveChangesAsync();
