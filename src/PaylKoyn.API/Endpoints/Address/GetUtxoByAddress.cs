@@ -35,6 +35,8 @@ public class GetUtxoByAddress(
     )
     {
         string? address = Route<string>("Address", isRequired: true);
+        int limit = Query<int?>("count", isRequired: false) ?? 20;
+        int offset = Query<int?>("page", isRequired: false) ?? 0;
 
         await using PaylKoynDbContext dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -42,6 +44,10 @@ public class GetUtxoByAddress(
             .AsNoTracking()
             .Where(e => e.Address == address)
             .Where(e => string.IsNullOrEmpty(e.SpentTxHash))
+            .OrderBy(e => e.Slot)
+            .ThenBy(e => e.OutRef)
+            .Take(limit)
+            .Skip(offset)
             .ToListAsync(cancellationToken: cancellationToken);
 
         if (!resolvedOutRefs.Any())
