@@ -128,14 +128,17 @@
         </div>
         <MudPaper 
             Elevation="0"
-            Class="w-[95vw] min-h-62 my-10 flex flex-row items-center justify-even !gap-6 !rounded-3xl !bg-[var(--mud-palette-gray-light)]/20 !p-6 overflow-y-hidden sm:h-62 sm:!my-0 sm:overflow-x-auto xl:w-full"
+            Class="w-[95vw] min-h-62 my-10 !rounded-3xl !bg-[var(--mud-palette-gray-light)]/20 !p-6 sm:h-62 sm:!my-0 xl:w-full"
         >
-            @foreach (var file in FileList)
-            {
-                <div class="size-50 flex-shrink-0">
-                    <img src="/images/nft/nft_payl_koyn_princess.jpg" alt=""/>
-                </div>
-            }
+            <div class="min-h-50 flex flex-row items-center overflow-x-auto !gap-6 sm:h-50 ">
+                @foreach (var file in FileList)
+                {
+                    <div class="size-50 flex-shrink-0">
+                        <img src="/images/nft/nft_payl_koyn_princess.jpg" alt=""/>
+                    </div>
+                }
+            </div>
+            
         </MudPaper>
     </div>
 </section>
