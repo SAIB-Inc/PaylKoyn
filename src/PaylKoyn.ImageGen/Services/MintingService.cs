@@ -184,7 +184,6 @@ public class MintingService(
         // Send it
         HttpResponseMessage response = await _nodeClient.PostAsync("upload/receive", formData);
         response.EnsureSuccessStatusCode();
-
         UploadFileResponse? uploadResponse = await response.Content.ReadFromJsonAsync<UploadFileResponse>();
 
         mintRequest.AdaFsId = uploadResponse?.AdaFsId;
