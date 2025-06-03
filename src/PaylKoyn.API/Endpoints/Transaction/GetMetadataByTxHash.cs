@@ -54,7 +54,7 @@ public class GetMetadataByTxHash(IDbContextFactory<PaylKoynDbContext> dbContextF
         await SendOkAsync(response, cancellation: ct);
     }
 
-    public static object? DeserializeMetadatum(TransactionMetadatum? metadatum)
+    private static object? DeserializeMetadatum(TransactionMetadatum? metadatum)
     {
         return metadatum switch
         {
