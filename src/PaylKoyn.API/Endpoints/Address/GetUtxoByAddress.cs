@@ -26,7 +26,6 @@ public class GetUtxoByAddress(
             .ProducesProblemFE(StatusCodes.Status400BadRequest)
             .ProducesProblemFE(StatusCodes.Status500InternalServerError)
             .WithName("GetUtxosByAddress")
-            .WithSummary("Get unspent transaction outputs (UTXOs) for a specific address")
         );
     }
 
