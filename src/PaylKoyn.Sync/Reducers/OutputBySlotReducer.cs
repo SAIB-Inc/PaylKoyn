@@ -65,6 +65,8 @@ public class OutputBySlotReducer(
             .Where(obs => string.IsNullOrEmpty(obs.SpentTxHash))
             .ToListAsync();
 
+        resolvedInputs = resolvedInputs.Union(dbContext.OutputsBySlot.Local.Where(e => inputs.Contains(e.OutRef)));
+
         ProcessOutputs(outputsByTx, blockHash, currentSlot, dbContext);
         ProcessInputs(resolvedInputs, transactions, currentSlot, dbContext);
 
@@ -114,7 +116,6 @@ public class OutputBySlotReducer(
         PaylKoynDbContext dbContext
     )
     {
-        resolvedInputs = resolvedInputs.Union(dbContext.OutputsBySlot.Local);
         IEnumerable<(string spentTxHash, OutputBySlot resolvedInput)> resolvedInputsByTx = transactions
             .SelectMany(tx =>
             {
