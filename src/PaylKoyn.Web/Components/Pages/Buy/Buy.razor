@@ -29,13 +29,12 @@
     </div>
     <div class="container !px-4 flex flex-col items-center !pt-[40.85px] gap-10 md:gap-14 md:h-full sm:!mx-auto">
         <div class="rounded-3xl !bg-[var(--mud-palette-primary)] w-full max-w-[1327px]">
-            <div class="w-full flex flex-col items-center !p-4 gap-4 md:gap-10 md:!p-10 md:flex-row">
-                <div class="!w-[338px] !h-[268px] md:!w-[479px] md:!h-[479px]">
-                    <MudImage Src="/images/nft/nft_payl_koyn-caesar.png" Alt="Payl Koyn" Elevation="0"
-                        Class="rounded-[12px] flex-shrink-0" />
+            <div class="w-full flex flex-col items-center items-stretch !p-4 !gap-4 md:!gap-10 md:!p-10 md:flex-row">
+                <div class="!w-full aspect-square !rounded-[12px] overflow-hidden flex-shrink-0 md:!w-[479px] md:!h-[479px]">
+                    <MudImage Src="/images/nft/nft_payl_koyn-caesar.png" Alt="Payl Koyn" Elevation="0"/>
                 </div>
-                <div class="flex flex-col md:w-[calc(100%-479px)]">
-                    <div class="flex justify-between">
+                <div class="flex flex-col justify-between">
+                    <div class="flex justify-between !gap-6 md:!gap-[65px]">
                         <div class="flex flex-col">
                             <div class="flex gap-1 md:gap-2 items-center">
                                 <MudText Class="!text-base md:!text-xl text-[var(--mud-palette-secondary)]"
@@ -48,7 +47,7 @@
                                 <MudText Class="!text-[20px] !font-bold md:!text-[40px]" Style="font-family: Inter;">
                                     PAYL KOYN #1042
                                 </MudText>
-                                <MudText Class="text-xs md:text-base" Style="font-family: Inter;">
+                                <MudText Class="!text-xs md:!text-base" Style="font-family: Inter;">
                                     <span>
                                         Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod
                                         tempor invidunt ut labore et.
@@ -61,27 +60,27 @@
                                 </MudText>
                             </div>
                         </div>
-                        <div class="size-[126px] md:size-[233px]">
-                            <MudImage Src="/images/qr_sample.webp" Alt="sample qr" class="flex-shrink-0"/>
+                        <div class="!w-[126px] aspect-square flex-shrink-0 md:!w-[233px]">
+                            <MudImage Src="/images/qr_sample.webp" Alt="sample qr"/>
                         </div>
                     </div>
-                    <div class="flex flex-col w-full rounded-[8px] border-1 border-[]">
-                        <div>
+                    <div class="flex flex-col w-full rounded-[8px] !border-1 !border-solid !border--[var(--mud-palette-gray-dark)]">
+                        <div class="rounded-t-2 !bg--[var(--mud-palette-gray-darker)] !border-1  !border-b-solid !border--[var(--mud-palette-gray-dark)] !py-3 !pl-6 md:!pl-3">
                             <MudText Class="!font-semibold !text-base md:!text-2xl" Style="font-family: Inter;">
                                 Current Price
                             </MudText>
                         </div>
                         <div>
-                            <div class="flex justify-between">
+                            <div class="flex justify-between !pt-4 !pb-4 !pl-3 !pr-[13px] md:!pl-[26px] md:!pr-6 md:!pt-[25px] md:!pt-6">
                                 <div class="flex gap-6">
                                     <MudIcon Icon="@IconService.PaylIcon" Class="!text-[24px] md:!text-[40px]">
                                     </MudIcon>
-                                    <MudText Class="!text-[40px] md:!text-2xl !font-bold" Style="font-family: Oxanium;">
+                                    <MudText Class="self-center !text-[40px] md:!text-2xl !font-bold" Style="font-family: Oxanium;">
                                         250.50
                                     </MudText>
                                 </div>
                                 <div>
-                                    <MudText Class="!text-[var(--mud-palette-text-secondary)] !t" Style="font-family: Inter;">≈$1223.20</MudText>
+                                    <MudText Class="!text-[var(--mud-palette-text-secondary)] self-center" Style="font-family: Inter;">≈$1223.20</MudText>
                                 </div>
                             </div>
                             <div>
