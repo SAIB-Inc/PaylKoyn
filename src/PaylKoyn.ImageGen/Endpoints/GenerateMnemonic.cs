@@ -5,7 +5,7 @@ using Paylkoyn.ImageGen.Services;
 
 namespace PaylKoyn.ImageGen.Endpoints;
 
-public class GenerateMnemonic(NftRandomizerService nftRandomizerService) : Endpoint<List<NftTrait>>
+public class GenerateMnemonic : Endpoint<List<NftTrait>>
 {
     public override void Configure()
     {
