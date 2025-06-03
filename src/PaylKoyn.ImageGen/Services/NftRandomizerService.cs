@@ -20,7 +20,7 @@ public class NftRandomizerService(IConfiguration configuration)
     private const string BasePath = "./Assets";
     private readonly Dictionary<string, int> _weights = configuration.GetValue<Dictionary<string, int>>("NftWeights") ?? [];
 
-    public byte[] GenerateRandomNFT(IEnumerable<NftTrait> traits, string? outputPath = null)
+    public byte[] GenerateNftImage(IEnumerable<NftTrait> traits, string? outputPath = null)
     {
         List<string> imagePaths = [];
 
