@@ -11,7 +11,7 @@ public class MintPaymentWorker(
     MintingService mintingService
 ) : BackgroundService
 {
-    private readonly ulong _mintingFee = configuration.GetValue<ulong>("MintingFee", 100_000_000UL);
+    private readonly ulong _mintingFee = configuration.GetValue<ulong>("Minting:MintingFee", 100_000_000UL);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

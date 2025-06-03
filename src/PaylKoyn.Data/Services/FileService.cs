@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Common;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
+using Chrysalis.Cbor.Serialization;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using Chrysalis.Tx.Extensions;
 using Chrysalis.Tx.Models;
@@ -95,6 +96,7 @@ public class FileService(
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Failed to submit transaction. Retrying...");
+                    logger.LogInformation(Convert.ToHexString(CborSerializer.Serialize(signedTx)));
                     retriesRemaining--;
                     if (_submissionRetries <= 0) throw;
                     await Task.Delay(_getUtxosInterval); // Wait before retrying

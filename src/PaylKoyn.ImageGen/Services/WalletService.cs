@@ -12,12 +12,35 @@ public class WalletService(
     IDbContextFactory<MintDbContext> dbContextFactory
 )
 {
-    private readonly string _seed = configuration["Seed"] ?? throw new ArgumentNullException("Seed is not configured");
-    private readonly NetworkType _networkType = int.Parse(configuration["CardanoNodeConnection:NetworkMagic"] ?? "2") switch
+    private readonly string _seed = configuration.GetValue("Seed", string.Empty);
+    private readonly NetworkType _networkType = configuration.GetValue("NetworkMagic", 2) switch
     {
         764824073 => NetworkType.Mainnet,
         _ => NetworkType.Testnet
     };
+
+    public WalletAddress GetWalletAddress(string seed, int index = 0)
+    {
+        Mnemonic mnemonic = Mnemonic.Restore(seed, English.Words);
+        PrivateKey accountKey = mnemonic
+            .GetRootKey()
+            .Derive(PurposeType.Shelley, DerivationType.HARD)
+            .Derive(CoinType.Ada, DerivationType.HARD)
+            .Derive(0, DerivationType.HARD);
+        PrivateKey paymentPrivateKey = accountKey
+            .Derive(RoleType.ExternalChain)
+            .Derive(index);
+        PrivateKey stakePrivateKey = accountKey
+            .Derive(RoleType.Staking)
+            .Derive(0);
+
+        PublicKey pkPub = paymentPrivateKey.GetPublicKey();
+        PublicKey skPub = stakePrivateKey.GetPublicKey();
+
+        WalletAddress address = WalletAddress.FromPublicKeys(_networkType, AddressType.Base, pkPub, skPub);
+
+        return address;
+    }
 
     public WalletAddress GetWalletAddress(int index = 0)
     {

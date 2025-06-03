@@ -20,7 +20,7 @@ builder.Services.Configure<KestrelServerOptions>(options =>
 builder.Services.AddOpenApi();
 builder.Services.AddFastEndpoints(o => o.IncludeAbstractValidators = true);
 builder.Services.AddSingleton<ICardanoDataProvider>(provider =>
-    new Blockfrost(builder.Configuration.GetValue("BlockfrostApiKey", "previewBVVptlCv4DAR04h3XADZnrUdNTiJyHaJ"))); 
+    new Blockfrost(builder.Configuration.GetValue("BlockfrostApiKey", "previewBVVptlCv4DAR04h3XADZnrUdNTiJyHaJ")));
 
 builder.Services.AddDbContextFactory<WalletDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -31,6 +31,13 @@ builder.Services.AddSingleton<TransactionService>();
 builder.Services.AddSingleton<FileCacheService>();
 
 WebApplication app = builder.Build();
+
+using (IServiceScope scope = app.Services.CreateScope())
+{
+    IDbContextFactory<WalletDbContext> dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<WalletDbContext>>();
+    using WalletDbContext dbContext = dbContextFactory.CreateDbContext();
+    await dbContext.Database.MigrateAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {

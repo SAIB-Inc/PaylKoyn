@@ -6,6 +6,7 @@ using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
 using Chrysalis.Cbor.Serialization;
 using Chrysalis.Cbor.Types.Cardano.Core;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
+using Chrysalis.Network.Cbor.LocalStateQuery;
 using Chrysalis.Tx.Extensions;
 using Chrysalis.Tx.Models;
 using Chrysalis.Tx.Models.Cbor;
@@ -13,7 +14,9 @@ using Chrysalis.Wallet.Models.Keys;
 using Chrysalis.Wallet.Utils;
 using Microsoft.EntityFrameworkCore;
 using Paylkoyn.ImageGen.Services;
+using PaylKoyn.Data.Models.Template;
 using PaylKoyn.Data.Responses;
+using PaylKoyn.Data.Services;
 using PaylKoyn.ImageGen.Data;
 
 namespace PaylKoyn.ImageGen.Services;
@@ -24,14 +27,17 @@ public class MintingService(
     ICardanoDataProvider cardanoDataProvider,
     NftRandomizerService nftRandomizerService,
     WalletService walletService,
+    TransactionService transactionService,
     TransactionTemplateService transactionTemplateService,
     IHttpClientFactory httpClientFactory,
     ILogger<MintingService> logger
 )
 {
     private readonly HttpClient _nodeClient = httpClientFactory.CreateClient("PaylKoynNodeClient");
+    private readonly HttpClient _submitClient = httpClientFactory.CreateClient("TxSubmitClient");
     private readonly TimeSpan _expirationTime = TimeSpan.FromMinutes(configuration.GetValue<int>("Minting:ExpirationMinutes", 30));
     private readonly TimeSpan _getUtxosInterval = TimeSpan.FromSeconds(configuration.GetValue<int>("Minting:GetUtxosIntervalSeconds", 10));
+    private readonly ulong _revenueFee = configuration.GetValue<ulong>("Minting:UploadRevenueFee", 2_000_000UL);
 
     public async Task<MintRequest> WaitForPaymentAsync(string id, ulong amount)
     {
@@ -103,19 +109,55 @@ public class MintingService(
             throw new InvalidOperationException($"Mint request with ID {id} is not in metadata generated status. Current status: {mintRequest.Status}");
 
         HttpResponseMessage response = await _nodeClient.PostAsync("upload/request", null);
-        string jsonString = await response.Content.ReadAsStringAsync();
-        UploadRequestResponse? uploadResponse = JsonSerializer.Deserialize<UploadRequestResponse>(jsonString);
+        UploadRequestResponse? uploadResponse = await response.Content.ReadFromJsonAsync<UploadRequestResponse>();
 
-        // @TODO: Create a send payment transaction to the upload address
-        mintRequest.Status = MintStatus.UploadPaymentSent;
-        mintRequest.UploadPaymentAddress = uploadResponse?.Id;
-        mintRequest.UploadPaymentAmount = 2_000_000UL;
-        mintRequest.UpdatedAt = DateTime.UtcNow;
-        dbContext.MintRequests.Update(mintRequest);
-        await dbContext.SaveChangesAsync();
+        ProtocolParams protocolParams = await cardanoDataProvider.GetParametersAsync();
+        ulong uploadFee = transactionService.CalculateFee(mintRequest.Image!.Length, _revenueFee, (ulong)protocolParams.MaxTransactionSize!);
 
-        logger.LogInformation("Image upload fee payment initiated for request ID: {Id}", id);
-        return mintRequest;
+        PrivateKey? privateKey = await walletService.GetPrivateKeyByAddressAsync(mintRequest.Id);
+
+        TransactionTemplate<TransferParams> transferTemplate = transactionService.Transfer(cardanoDataProvider);
+        TransferParams transferParams = new TransferParams(
+            mintRequest.Id,
+            uploadResponse!.Id,
+            uploadFee
+        );
+        Transaction tx = await transferTemplate(transferParams);
+        Transaction signedTx = tx.Sign(privateKey!);
+
+        // Submit the transaction to the node
+        try
+        {
+            string txHash = await SubmitTransactionAsync(CborSerializer.Serialize(signedTx));
+            logger.LogInformation("Transaction submitted successfully for request ID: {Id}. TxHash: {TxHash}", id, txHash);
+
+            mintRequest.Status = MintStatus.UploadPaymentSent;
+            mintRequest.UploadPaymentAddress = uploadResponse?.Id;
+            mintRequest.UploadPaymentAmount = uploadFee;
+            mintRequest.UpdatedAt = DateTime.UtcNow;
+            dbContext.MintRequests.Update(mintRequest);
+            await dbContext.SaveChangesAsync();
+
+            logger.LogInformation("Image upload fee payment initiated for request ID: {Id}", id);
+            return mintRequest;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to submit transaction for request ID: {Id}", id);
+            throw new InvalidOperationException($"Failed to submit transaction for request ID: {id}", ex);
+        }
+    }
+
+    public async Task<string> SubmitTransactionAsync(byte[] transaction)
+    {
+        ByteArrayContent submitPayload = new(transaction);
+        submitPayload.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/cbor");
+        HttpResponseMessage response = await _submitClient.PostAsync("api/submit/tx", submitPayload);
+        response.EnsureSuccessStatusCode();
+
+        string jsonResponse = await response.Content.ReadAsStringAsync();
+        string txHash = JsonSerializer.Deserialize<string>(jsonResponse)!;
+        return txHash;
     }
 
     public async Task<MintRequest> UploadImageAsync(string id)
@@ -127,11 +169,11 @@ public class MintingService(
             throw new InvalidOperationException($"Mint request with ID {id} is not in upload payment sent status. Current status: {mintRequest.Status}");
 
         // Upload the image to the node
-        string fileName = $"{id}.png";
+        string fileName = $"test.png";
         using MultipartFormDataContent formData = new()
         {
             // Fill in the form fields
-            { new StringContent(id), "id" },
+            { new StringContent(mintRequest.UploadPaymentAddress!), "id" },
             { new StringContent(fileName), "name" },
             { new StringContent("image/png"), "contentType" },
 
@@ -142,9 +184,8 @@ public class MintingService(
         // Send it
         HttpResponseMessage response = await _nodeClient.PostAsync("upload/receive", formData);
         response.EnsureSuccessStatusCode();
-        string jsonString = await response.Content.ReadAsStringAsync();
 
-        UploadFileResponse? uploadResponse = JsonSerializer.Deserialize<UploadFileResponse>(jsonString);
+        UploadFileResponse? uploadResponse = await response.Content.ReadFromJsonAsync<UploadFileResponse>();
 
         mintRequest.AdaFsId = uploadResponse?.AdaFsId;
         mintRequest.UpdatedAt = DateTime.UtcNow;
@@ -160,8 +201,7 @@ public class MintingService(
         string policyId,
         string assetName,
         string asciiAssetName,
-        string rewardAddress,
-        string description
+        string rewardAddress
     )
     {
         using MintDbContext dbContext = dbContextFactory.CreateDbContext();
@@ -175,8 +215,7 @@ public class MintingService(
             assetName,
             mintRequest.AdaFsId!,
             JsonSerializer.Deserialize<List<NftTrait>>(mintRequest.NftMetadata!)!,
-            asciiAssetName,
-            description
+            asciiAssetName
         );
 
         TransactionTemplate<MintNftParams> nftTemplate = transactionTemplateService.MintNftTemplate();
@@ -195,18 +234,25 @@ public class MintingService(
         Transaction tx = await nftTemplate(mintNftParams);
         Transaction signedTx = tx.Sign(privateKey!);
 
-        // Submit to a node
-        string txHash = Convert.ToHexString(HashUtil.Blake2b256(CborSerializer.Serialize(signedTx)));
+        // Submit to a node 
+        try
+        {
+            string txHash = await SubmitTransactionAsync(CborSerializer.Serialize(signedTx));
+            mintRequest.AssetName = assetName;
+            mintRequest.PolicyId = policyId;
+            mintRequest.MintTxHash = txHash;
+            mintRequest.Status = MintStatus.Minted;
+            mintRequest.UpdatedAt = DateTime.UtcNow;
+            dbContext.MintRequests.Update(mintRequest);
+            await dbContext.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to mint NFT for request ID: {Id}", id);
+            throw new InvalidOperationException($"Failed to mint NFT for request ID: {id}", ex);
+        }
 
-        // Assign an asset name 
-        mintRequest.AssetName = assetName;
-        mintRequest.PolicyId = policyId;
-        mintRequest.MintTxHash = txHash;
-        mintRequest.Status = MintStatus.Minted;
-        mintRequest.UpdatedAt = DateTime.UtcNow;
-        dbContext.MintRequests.Update(mintRequest);
-        await dbContext.SaveChangesAsync();
-
+        logger.LogInformation("NFT minted successfully for request ID: {Id}. TxHash: {TxHash}", id, mintRequest.MintTxHash);
         return mintRequest;
     }
 

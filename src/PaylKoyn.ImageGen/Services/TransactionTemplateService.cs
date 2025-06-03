@@ -7,6 +7,7 @@ using Chrysalis.Tx.Builders;
 using Chrysalis.Tx.Models;
 using Chrysalis.Tx.Providers;
 using Chrysalis.Wallet.Utils;
+using PaylKoyn.ImageGen.Services;
 using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;
 
 namespace Paylkoyn.ImageGen.Services;
@@ -24,37 +25,41 @@ public record MintNftParams(string ChangeAddress, string UserAddress, string Rew
 
 public class TransactionTemplateService(IConfiguration configuration)
 {
-    private readonly NativeScript _mintingScript = new ScriptPubKey(0, Convert.FromHexString("5eedab004c4540665dca3d44554ad7a9c9092e69b1b05807881122df"));
+    private readonly NativeScript _mintingScript = new InvalidBefore(4, 100);
     private readonly Blockfrost _provider = new(configuration.GetValue<string>("Blockfrost:ProjectId", "previewBVVptlCv4DAR04h3XADZnrUdNTiJyHaJ"));
 
     public TransactionTemplate<MintNftParams> MintNftTemplate()
     {
         TransactionTemplateBuilder<MintNftParams> builder = TransactionTemplateBuilder<MintNftParams>.Create(_provider);
 
+        //private readonly NativeScript _mintingScript = new ScriptPubKey(0, Convert.FromHexString("5eedab004c4540665dca3d44554ad7a9c9092e69b1b05807881122df"));
+
         byte[] nativeScriptBytes = CborSerializer.Serialize(_mintingScript);
         byte[] mintingPolicyIdBytes = HashUtil.Blake2b224([0, .. nativeScriptBytes]);
         string mintingPolicyId = Convert.ToHexString(mintingPolicyIdBytes).ToLowerInvariant();
 
-        builder.AddOutput((options, parameters) =>
-        {
-            byte[] assetNameBytes = Convert.FromHexString(parameters.MintAssets.First().Key);
-            Dictionary<byte[], ulong> assetDict = new()
-            {
-                [assetNameBytes] = 1 // Example asset, replace with actual asset logic
-            };
-            TokenBundleOutput tokenBundle = new(assetDict);
-            Dictionary<byte[], TokenBundleOutput> policyDict = new()
-            {
-                [mintingPolicyIdBytes] = tokenBundle
-            };
-            MultiAssetOutput multiAssetOutput = new(policyDict);
+        Console.WriteLine($"Minting Policy ID: {mintingPolicyId}");
 
-            options.To = "user";
-            options.Amount = new LovelaceWithMultiAsset(
-                new(2_000_000UL),
-                multiAssetOutput
-            );
-        });
+        builder.AddOutput((options, parameters) =>
+            {
+                byte[] assetNameBytes = Convert.FromHexString(parameters.MintAssets.First().Key);
+                Dictionary<byte[], ulong> assetDict = new()
+                {
+                    [assetNameBytes] = 1 // Example asset, replace with actual asset logic
+                };
+                TokenBundleOutput tokenBundle = new(assetDict);
+                Dictionary<byte[], TokenBundleOutput> policyDict = new()
+                {
+                    [mintingPolicyIdBytes] = tokenBundle
+                };
+                MultiAssetOutput multiAssetOutput = new(policyDict);
+
+                options.To = "user";
+                options.Amount = new LovelaceWithMultiAsset(
+                    new(2_000_000UL),
+                    multiAssetOutput
+                );
+            });
 
         builder.AddMint((options, parameters) =>
         {
@@ -72,7 +77,7 @@ public class TransactionTemplateService(IConfiguration configuration)
             return parameters.Metadata;
         });
 
-        builder.AddRequiredSigner("change");
+        builder.SetValidFrom(101);
 
         builder.SetPreBuildHook((txBuilder, _, parameters) =>
         {

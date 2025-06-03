@@ -9,6 +9,9 @@ public class NftRandomizerService(IConfiguration configuration)
 {
     private static readonly List<string> _allCategories = ["background", "body", "lineart", "clothing", "eyes", "hat"];
     private static readonly List<AttributeGroup> _attributeGroups = [
+        new("Radioactive Undead", [.. _allCategories.Except(["lineart"])]),
+        new("Samurai", [.. _allCategories.Except(["lineart"])]),
+        new("Caesar", [.. _allCategories.Except(["lineart"])]),
         new("Pinky Pie", [.. _allCategories.Except(["lineart"])]),
         new("Pyro", [.. _allCategories.Except(["lineart"])]),
         new("Rocker", [.. _allCategories.Except(["lineart"])]),

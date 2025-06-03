@@ -12,28 +12,29 @@ public static class ImageUtil
             throw new ArgumentException("At least one image path is required");
 
         // Load the base image (first one)
-        using var baseImage = Image.Load(imagePaths[0]);
+        using Image baseImage = Image.Load(imagePaths[0]);
 
         // Layer each subsequent image on top
         baseImage.Mutate(ctx =>
         {
             for (int i = 1; i < imagePaths.Length; i++)
             {
-                using var layerImage = Image.Load(imagePaths[i]);
-                // Overlay at (0,0) since all images are same size squares
+                using Image layerImage = Image.Load(imagePaths[i]);
                 ctx.DrawImage(layerImage, Point.Empty, 1.0f);
             }
+            ctx.Resize(500, 500);
         });
 
         // Convert to byte array
-        using var memoryStream = new MemoryStream();
-        var encoder = new PngEncoder()
+        using MemoryStream memoryStream = new();
+        PngEncoder encoder = new()
         {
-            ColorType = PngColorType.RgbWithAlpha
+            ColorType = PngColorType.RgbWithAlpha,
+            CompressionLevel = PngCompressionLevel.BestCompression
         };
 
         baseImage.Save(memoryStream, encoder);
-        var imageBytes = memoryStream.ToArray();
+        byte[] imageBytes = memoryStream.ToArray();
 
         // Optionally save to file if path is provided
         if (!string.IsNullOrEmpty(outputPath))

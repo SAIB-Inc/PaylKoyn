@@ -27,6 +27,11 @@ builder.Services.AddHttpClient("PaylKoynNodeClient", client =>
     client.BaseAddress = new Uri(builder.Configuration.GetValue("PaylKoynNodeUrl", "http://localhost:5246/api/v1"));
     client.DefaultRequestHeaders.Add("Accept", "application/json");
 });
+builder.Services.AddHttpClient("TxSubmitClient", client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration.GetValue("TxSubmitUrl", "http://localhost:3000/submit"));
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
 
 // Workers
 builder.Services.AddHostedService<MintWorker>();
