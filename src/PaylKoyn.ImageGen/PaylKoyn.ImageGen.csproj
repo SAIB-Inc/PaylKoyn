@@ -6,10 +6,18 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Chrysalis" Version="0.7.7" />
     <PackageReference Include="FastEndpoints" Version="6.1.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.5">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <PackageReference Include="Scalar.AspNetCore" Version="2.4.7" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.8" />
      <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="2.1.6" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\PaylKoyn.Data\PaylKoyn.Data.csproj" />
   </ItemGroup>
 </Project>
