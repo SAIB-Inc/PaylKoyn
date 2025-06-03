@@ -90,9 +90,9 @@
                             </div>
                             <div class="flex justify-center">
                                 <MudButton
-                                    Class="button-profile-gradient !p-[2px] !rounded-full !w-[314px] !h-[34.27px] mx-auto md:!w-[680px] md:!h-12 md:!px-1 md:!py-4">
+                                    Class="button-profile-gradient !p-[2px] !rounded-full !w-[314px] !h-[34px] mx-auto md:!w-[680px] md:!h-12">
                                     <div
-                                        class="!bg-[var(--mud-palette-secondary)] w-full !h-[46px] flex items-center justify-center !rounded-full">
+                                        class="!bg-[var(--mud-palette-secondary)] w-full !h-[32px] flex items-center justify-center !rounded-full md:!h-11">
                                         <MudImage Src="/images/buy_now.svg" Alt="Buy now" />
                                     </div>
                                 </MudButton>
@@ -126,14 +126,14 @@
 <section class="relative h- !bg-[var(--mud-palette-primary)] pt-8 !pb-[47.97px] md:pt-20 md:h-[353.013px]">
     <div class="container mx-auto">
         <MudPaper Elevation="0"
-            Class="w-[338px] mx-auto h-66 flex items-center justify-center !gap-12 !rounded-3xl !bg-[var(--mud-palette-secondary)]/10 !p-6 md:mt-20 md:w-full">
-            <div class="min-h-40 flex flex-row items-center overflow-x-auto !gap-4 sm:h-[61.25px] sm:!gap-[23.5px]">
-                @* @foreach (var file in FileList)
+            Class="w-[338px] !h-40 !p-4 mx-auto flex items-center justify-center !gap-12 !rounded-3xl !bg-[var(--mud-palette-secondary)]/10 md:!p-6 md:mt-20 md:w-full md:h-66">
+            <div class="w-full !h-full flex items-center overflow-x-auto !gap-4 sm:h-[61.25px] sm:!gap-[23.5px]">
+                @for(int x=0; x < 8; x++)
                 {
-                    <div class="size-32 md:size-50 flex-shrink-0">
-                        <img src="/images/nft/nft_payl_koyn_princess.jpg" alt=""/>
+                    <div class="!h-32 aspect-square md:!h-50 flex-shrink-0 !rounded-[12px] md:!rounded-[4px]">
+                        <img src="/images/nft/nft_payl_koyn_princess.jpg" alt="Payl Princess"/>
                     </div>
-                } *@
+                }
             </div>
         </MudPaper>
     </div>
