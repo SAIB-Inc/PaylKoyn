@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using PaylKoyn.Data.Services;
 using PaylKoyn.Node.Services;
 using Chrysalis.Wallet.Models.Keys;
+using PaylKoyn.Data.Responses;
 namespace PaylKoyn.Node.Endpoints;
 
 public class UploadFileRequest
@@ -30,7 +31,7 @@ public class ReceiveUpload(FileService fileService, WalletService walletService)
     public override async Task HandleAsync(UploadFileRequest req, CancellationToken ct)
     {
         Console.WriteLine($"Received file upload: Id={req.Id}, Name={req.Name}, ContentType={req.ContentType}, FileSize={req.File.Length} bytes");
-        
+
         // Convert IFormFile to byte array
         byte[] fileContent;
         using (var memoryStream = new MemoryStream())
@@ -38,7 +39,7 @@ public class ReceiveUpload(FileService fileService, WalletService walletService)
             await req.File.CopyToAsync(memoryStream, ct);
             fileContent = memoryStream.ToArray();
         }
-        
+
         // Get private key for the wallet address (req.Id is the wallet address)
         PrivateKey? privateKey = await walletService.GetPrivateKeyByAddressAsync(req.Id);
         if (privateKey == null)
@@ -46,11 +47,15 @@ public class ReceiveUpload(FileService fileService, WalletService walletService)
             await SendAsync(new { error = "Wallet not found for address: " + req.Id }, 404, cancellation: ct);
             return;
         }
-        
+
         try
         {
-            await fileService.UploadAsync(req.Id, fileContent, req.ContentType, req.Name, privateKey);
-            await SendOkAsync($"File uploaded successfully to blockchain. Size: {req.File.Length} bytes", cancellation: ct);
+            var adaFsId = await fileService.UploadAsync(req.Id, fileContent, req.ContentType, req.Name, privateKey);
+            await SendOkAsync(new UploadFileResponse(
+                Message: "File uploaded successfully",
+                AdaFsId: adaFsId,
+                FileSize: fileContent.Length
+            ), cancellation: ct);
         }
         catch (Exception ex)
         {
