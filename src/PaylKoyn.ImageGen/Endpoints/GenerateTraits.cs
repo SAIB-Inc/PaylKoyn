@@ -9,7 +9,6 @@ public class GenerateTraits(NftRandomizerService nftRandomizerService) : Endpoin
     {
         Post("/generate/traits");
         AllowAnonymous();
-        AllowFileUploads();
         Description(x => x
             .WithTags("NFT")
             .WithSummary("Generates new random NFT traits")
