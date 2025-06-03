@@ -6,7 +6,9 @@ using Chrysalis.Tx.Extensions;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models;
-namespace PaylKoyn.API.Endpoints;
+using PaylKoyn.Data.Models.Api.Response.Data;
+
+namespace PaylKoyn.API.Endpoints.Scripts;
 
 public class GetScriptCbor(IDbContextFactory<PaylKoynDbContext> dbContextFactory) : EndpointWithoutRequest
 {
@@ -15,6 +17,13 @@ public class GetScriptCbor(IDbContextFactory<PaylKoynDbContext> dbContextFactory
         Get("/scripts/{scriptHash}/cbor");
         AllowAnonymous();
 
+        Description(d => d
+            .WithTags("Scripts")
+            .Produces<ScriptCborResponse[]>(StatusCodes.Status200OK)
+            .ProducesProblemFE(StatusCodes.Status400BadRequest)
+            .ProducesProblemFE(StatusCodes.Status500InternalServerError)
+            .WithName("GetScriptCbor")
+        );
     }
 
     public override async Task HandleAsync(CancellationToken ct)
@@ -45,10 +54,4 @@ public class GetScriptCbor(IDbContextFactory<PaylKoynDbContext> dbContextFactory
 
         await SendOkAsync(response, cancellation: ct);
     }
-
 }
-
-public record ScriptCborResponse(
-    string Cbor
-);
-

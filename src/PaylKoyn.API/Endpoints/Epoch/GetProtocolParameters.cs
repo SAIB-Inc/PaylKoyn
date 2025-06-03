@@ -1,4 +1,5 @@
 using FastEndpoints;
+using PaylKoyn.Data.Models.Api.Response.Data;
 
 namespace PaylKoyn.API.Endpoints.Epoch;
 
@@ -9,6 +10,13 @@ public class GetProtocolParameters() : EndpointWithoutRequest
         Get("/epochs/latest/parameters");
         AllowAnonymous();
 
+        Description(d => d
+            .WithTags("Epoch")
+            .Produces<ProtocolParametersResponse[]>(StatusCodes.Status200OK)
+            .ProducesProblemFE(StatusCodes.Status400BadRequest)
+            .ProducesProblemFE(StatusCodes.Status500InternalServerError)
+            .WithName("GetProtocolParameters")
+        );
     }
 
     public override async Task HandleAsync(CancellationToken ct)
@@ -724,42 +732,4 @@ public class GetProtocolParameters() : EndpointWithoutRequest
             ]
         };
     }
-
 }
-
-public record ProtocolParametersResponse(
-     int Epoch,
-     int MinFeeA,
-     int MinFeeB,
-     int MaxBlockSize,
-     int MaxTxSize,
-     int MaxBlockHeaderSize,
-     string KeyDeposit,
-     string PoolDeposit,
-     int EMax,
-     int NOpt,
-     double A0,
-     double Rho,
-     double Tau,
-     double DecentralisationParam,
-     object? ExtraEntropy,
-     int ProtocolMajorVer,
-     int ProtocolMinorVer,
-     string MinUtxo,
-     string MinPoolCost,
-     string Nonce,
-     Dictionary<string, Dictionary<string, int>>? CostModels,
-     Dictionary<string, int[]>? CostModelsRaw,
-     double PriceMem,
-     double PriceStep,
-     string MaxTxExMem,
-     string MaxTxExSteps,
-     string MaxBlockExMem,
-     string MaxBlockExSteps,
-     string MaxValSize,
-     int CollateralPercent,
-     int MaxCollateralInputs,
-     string CoinsPerUtxoSize,
-     int MinFeeRefScriptCostPerByte
-
- );
