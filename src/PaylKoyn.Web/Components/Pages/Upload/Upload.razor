@@ -24,92 +24,130 @@
     <meta name="twitter:creator" content="@@saib_inc" />
 </HeadContent>
 
-<section class="relative h-[calc(100vh-207.85px)] max-lg:hidden">
+<section class="relative md:h-[calc(100vh-207.85px)]">
     <div>
         <MudImage Src="/images/background.svg" Alt="" class="absolute top-0 left-[-194px] -z-10" />
         <MudImage Src="/images/background.svg" Alt="" class="absolute top-0 right-[-190px] -z-10 scale-x-[-1]"/>
     </div>
-    <div class="container h-full mx-auto flex flex-col items-center justify-evenly">
-        <div class="rounded-3xl !bg-[var(--mud-palette-primary)] w-full max-w-[1214px]">
-            <div class="flex items-center gap-6 !p-6 !pb-4">
-                <div class="border-2 border-[var(--mud-palette-gray-dark)] rounded-full !p-[17.5px]">
-                    <MudIcon Icon="@(!FileList!.Any() ? IconService.UploadIcon : IconService.QrIcon)" Class="!text-[35px]"/>
+    <div class="container mx-auto pt-1 flex flex-col items-center justify-evenly md:pt-0 md:h-full">
+        <div class="rounded-3xl !bg-[var(--mud-palette-primary)] w-[95vw] xl:w-full lg:max-w-[1214px]">
+            <div class="flex items-center !py-[17px] !pl-4 gap-3 md:gap-6 md:!p-6">
+                <div class="border-2 border-[var(--mud-palette-gray-dark)] rounded-full !p-[8.5px] md:!p-[17.5px]">
+                    <MudIcon Icon="@(!FileList!.Any() ? IconService.UploadIcon : IconService.QrIcon)" Class="!text-[19px] md:!text-[35px]"/>
                 </div>
-                <div>
-                    <MudText Class="text-[var(--mud-palette-text-primary)] !font-semibold !text-2xl">@(!FileList!.Any() ? "Upload Your Files" : "Scan QR Code")</MudText>
-                    <MudText Class="text-[var(--mud-palette-text-secondary)] !font-medium !text-xl">
+                <div class="flex flex-col gap-1">
+                    <MudText Class="text-[var(--mud-palette-text-primary)] !font-semibold leading-4 !text-base md:!text-2xl md:leading-6">@(!FileList!.Any() ? "Upload Your Files" : "Scan QR Code")</MudText>
+                    <MudText Class="text-[var(--mud-palette-text-secondary)] !font-medium leading-3 !text-xs md:!text-xl md:leading-5">
                         @if (!FileList?.Any() ?? true)
                         {
                             <span>Select and upload the files of your choice</span>
                         }
                         else
                         {
-                            <span class="!text-[var(--mud-palette-background)]">By using the service you will receive </span>
-                            <span class="!font-bold !text-[var(--mud-palette-background)]">$PAYL</span>
+                            <span class="text-xs md:text-xl !text-[var(--mud-palette-background)]">By using the service you will receive </span>
+                            <span class="text-xs md:text-xl !font-bold !text-[var(--mud-palette-background)]">$PAYL</span>
                         }
                     </MudText>
                 </div>
             </div>
             <MudDivider Class="!border-[var(--mud-palette-gray-dark)]"/>
-            <div class="!p-6">
+            <div class="!p-4 md:!p-6">
                 @if(FileList!.Any())
                 {
-                    <div class="flex items-center gap-2">
-                        <div class="w-73 h-75">
-                            <MudImage
-                                src="/images/qr_sample.webp"
-                                alt="sample qr"
-                            />
-                        </div>
-                        <div class="w-[calc(100%-300px)] flex flex-col justify-between !gap-4">
-                            <div class="w-full relative flex items-center gap-4 bg-[var(--mud-palette-gray-darker)] rounded-2xl !p-4">
-                                <div>
-                                    <MudIcon Icon="@IconService.ImageIcon" Class="!text-[64px]"/> 
-                                </div>
-                                <div>
-                                    <MudText Class="!font-bold !text-2xl !text-[var(--mud-palette-text-primary)]">NFT PAYL KOYN PINKY PIE</MudText>
-                                    <div class="flex items-center !gap-2">
-                                        <MudText Class="!text-[var(--mud-palette-text-secondary)]">64 KB of 64 KB •</MudText>
-                                        <div class="flex items-center gap-2">
-                                            <MudIcon Icon="@IconService.LoadingIcon" Class="!text-base"/>
-                                            <MudText Class="!text-[var(--mud-palette-text-primary)] !text-base !font-medium">Uploading...</MudText>
+                    <div>
+                        <div class="flex flex-col md:flex-row items-center gap-2">
+                            <div class="w-[183px] aspect-square flex-shrink-0 sm:!w-73 md:!w-[231px] lg:!w-[290px] xl:!w-81">
+                                <MudImage
+                                    Src="/images/qr_sample.webp"
+                                    Alt="sample qr"
+                                    Class="w-full h-full object-contained"
+                                />
+                            </div>
+                            <div class="w-full flex flex-col justify-between !gap-3 md:!gap-1 lg:!gap-3 lg:w-[calc(100%-300px)]">
+                                <div class="w-full relative flex items-center gap-3 !p-3 bg-[var(--mud-palette-gray-darker)] rounded-2xl sm:gap-4 sm:!p-3">
+                                    <div>
+                                        <MudIcon Icon="@IconService.ImageIcon" Class="!text-[30px] sm:!text-[40px] lg:!text-[64px]"/> 
+                                    </div>
+                                    <div>
+                                        <div class="flex flex-wrap sm:w-full">
+                                            <MudText Class="!font-bold text-xl !text-[var(--mud-palette-text-primary)] lg:!text-2xl">NFT PAYL KOYN PINKY PIE</MudText>
+                                        </div>
+                                        <div class="flex items-start sm:items-center !gap-1 md:!gap-2">
+                                            <MudText Class="!text-[var(--mud-palette-text-secondary)] !text-xs sm:!text-sm md:!text-xs lg:text-base">64 KB of 64 KB •</MudText>
+                                            <div class="flex items-center !gap-1 sm:!gap-2">
+                                                <MudIcon Icon="@IconService.LoadingIcon" Class="!text-xs sm:!text-sm md:!text-xs lg:!text-base"/>
+                                                <MudText Class="!text-left !text-[var(--mud-palette-text-primary)] !text-xs sm:!text-sm md:!text-xs lg:!text-base !font-medium">Uploading...</MudText>
+                                            </div>
                                         </div>
                                     </div>
+                                    <MudIconButton 
+                                        Icon="@IconService.DeleteIcon" 
+                                        aria-label="delete" 
+                                        Class="!p-0 absolute top-4 right-4 [&_.mud-icon-root]:!text-lg md:[&_.mud-icon-root]:!text-base lg:[&_.mud-icon-root]:!text-lg"
+                                    />
                                 </div>
-                                <MudIconButton Icon="@IconService.DeleteIcon" aria-label="delete" Class="absolute top-4 right-4 !p-0"/>
-                            </div>
-                            <MudText Class="!text-xl !font-medium !text-[var(--mud-palette-text-primary)]">Upload Address:</MudText>
-                            <MudText Class="!text-sm !font-mono !text-[var(--mud-palette-text-primary)] break-all">@UploadAddress</MudText>
-                            
-                            <MudText Class="!text-xl !font-medium !text-[var(--mud-palette-text-primary)]">Estimated cost:</MudText>
-                            <MudText Class="!text-xl">
-                                <span class="!text-[var(--mud-palette-text-secondary)]">Total: </span>
-                                <span class="!font-bold !text-[var(--mud-palette-text-primary)]">@($"2 ADA")</span>
-                            </MudText>
-                            
-                            <MudButton 
-                                Variant="Variant.Filled" 
-                                Color="Color.Primary" 
-                                OnClick="() => UploadFile(FileList.First())"
-                                Disabled="@(FileList.First().Status == UploadStatus.Uploading)"
-                                Class="!bg-[var(--mud-palette-secondary)] px-6 h-12 !rounded-full !font-semibold !text-[var(--mud-palette-primary)] !text-xl !capitalize !self-end hover:!bg-[var(--mud-palette-secondary-lighten)] active:!bg-[var(--mud-palette-secondary-darken)]">
-                                @(FileList.First().Status switch 
-                                {
-                                    UploadStatus.Ready => "Upload File",
-                                    UploadStatus.Uploading => "Uploading...",
-                                    UploadStatus.Completed => "Upload Complete",
-                                    UploadStatus.Error => "Upload Failed",
-                                    _ => "Upload"
-                                })
-                            </MudButton>
-                            
-                            @if (!string.IsNullOrEmpty(FileList.First().Message))
-                            {
-                                <MudText Class="!text-sm !mt-2" Color="@(FileList.First().Status == UploadStatus.Error ? Color.Error : Color.Success)">
-                                    @FileList.First().Message
+                                <MudText Class="font-medium !text-[var(--mud-palette-text-primary)] !text-base lg:!text-xl">Upload Address:</MudText>
+                                <div class="w-full flex items-center justify-between border border-[var(--mud-palette-gray-dark)] !rounded-lg gap-2 !p-2 md:!p-1 lg:!p-3">
+                                    <MudText Class="!text-sm !font-mono !text-[var(--mud-palette-background)] break-all !truncate !text-ellipsis md:!text-xs md:!max-w-100 lg:!max-w-193
+    ">@UploadAddress</MudText> 
+                                    <MudIcon Icon="@IconService.CopyIcon" Class="!text-lg md:!text-base lg:!text-2xl"/>
+                                </div>                            
+                                <MudText Class="!font-medium !text-[var(--mud-palette-text-primary)] !text-base lg:!text-xl">Estimated cost:</MudText>
+                                <div>
+                                    <MudText>
+                                        <span class="!text-[var(--mud-palette-text-secondary)] !text-base md:!text-xs lg:!text-base">Network fee: </span>
+                                        <span class="!font-bold !text-base md:!text-xs lg:!text-base">2 ADA</span>
+                                    </MudText>
+                                    <MudText>
+                                        <span class="!text-[var(--mud-palette-text-secondary)] !text-base md:!text-xs lg:!text-base">Service fee: </span>
+                                        <span class="!font-bold !text-base md:!text-xs lg:!text-base">1 ADA</span>
+                                    </MudText>
+                                </div>
+                                <MudDivider Class=""/>
+                                <MudText Class="!text-base lg:!text-xl">
+                                    <span class="!text-[var(--mud-palette-text-secondary)] !font-bold">Total Cost: </span>
+                                    <span class="!font-bold !text-[var(--mud-palette-text-primary)]">@($"2 ADA")</span>
                                 </MudText>
-                            }
+                                
+                                <MudButton 
+                                    Variant="Variant.Filled" 
+                                    Color="Color.Primary" 
+                                    OnClick="() => UploadFile(FileList.First())"
+                                    Disabled="@(FileList.First().Status == UploadStatus.Uploading)"
+                                    Class="!bg-[var(--mud-palette-secondary)] px-6 h-10 !rounded-full !font-semibold !text-[var(--mud-palette-primary)] !text-xl !capitalize !self-center hover:!bg-[var(--mud-palette-secondary-lighten)] active:!bg-[var(--mud-palette-secondary-darken)] w-full !mt-3 md:w-[339px] md:!mt-0  md:!self-start md:h-10 lg:!self-end lg:!w-[137px] md:!hidden lg:!inline-flex">
+                                    @(FileList.First().Status switch 
+                                    {
+                                        UploadStatus.Ready => "Continue",
+                                        UploadStatus.Uploading => "Uploading...",
+                                        UploadStatus.Completed => "Upload Complete",
+                                        UploadStatus.Error => "Upload Failed",
+                                        _ => "Upload"
+                                    })
+                                </MudButton>
+                                
+                                @if (!string.IsNullOrEmpty(FileList.First().Message))
+                                {
+                                    <MudText Class="!text-sm !mt-2" Color="@(FileList.First().Status == UploadStatus.Error ? Color.Error : Color.Success)">
+                                        @FileList.First().Message
+                                    </MudText>
+                                }
+                            </div>
                         </div>
+                        <MudButton 
+                            Variant="Variant.Filled" 
+                            Color="Color.Primary" 
+                            OnClick="() => UploadFile(FileList.First())"
+                            Disabled="@(FileList.First().Status == UploadStatus.Uploading)"
+                            Class="!bg-[var(--mud-palette-secondary)] px-6 h-10 !rounded-full !font-semibold !text-[var(--mud-palette-primary)] !text-xl !capitalize !self-center hover:!bg-[var(--mud-palette-secondary-lighten)] active:!bg-[var(--mud-palette-secondary-darken)] w-full !mt-7 md:!self-start md:h-10 !hidden md:!inline-flex lg:!hidden">
+                            @(FileList.First().Status switch 
+                            {
+                                UploadStatus.Ready => "Continue",
+                                UploadStatus.Uploading => "Uploading...",
+                                UploadStatus.Completed => "Upload Complete",
+                                UploadStatus.Error => "Upload Failed",
+                                _ => "Upload"
+                            })
+                        </MudButton>
                     </div>
                 }
                 else
@@ -126,19 +164,18 @@
                     >
                         <ActivatorContent>
                             <MudPaper 
-                                Height="308px"
                                 Outlined="true"
-                                Class="bg-[var(--mud-palette-primary)]! !border-2 !border-dashed !border-[var(--mud-palette-gray-dark)] flex flex-col items-center justify-center !gap-6"
+                                Class="h-107 bg-[var(--mud-palette-primary)]! !border-2 !border-dashed !border-[var(--mud-palette-gray-dark)] flex flex-col items-center !pt-26 !pb-[166px] md:!p-0 md:justify-center md:!gap-6 md:h-77"
                             >
                                 <div>
-                                    <MudIcon Icon="@IconService.UploadIcon" Class="!text-[46px]"/>
+                                    <MudIcon Icon="@IconService.UploadIcon" Class="!text-[32px] md:!text-[46px] md:mt-0"/>
                                 </div>
-                                <div>
-                                    <MudText Class="!text-[var(--mud-palette-text-primary)] !font-medium !text-2xl">Choose a file or drag & drop it here</MudText>
-                                    <MudText Class="!text-[var(--mud-palette-text-secondary)] !font-medium !text-xl">JPEG, PNG, and MP4 formats, up to 50MB</MudText>
+                                <div  class="mt-6 md:!mt-0">
+                                    <MudText Class="!text-[var(--mud-palette-text-primary)]  text-center !font-medium md:!text-base md:leading-8 lg:!text-2xl">Choose a file or drag & drop it here</MudText>
+                                    <MudText Class="!text-[var(--mud-palette-text-secondary)] mx-1 mt-2 text-center !font-medium !text-xs md:mt-0 md:mx-0 lg:!text-xl">JPEG, PNG, and MP4 formats, up to 50MB</MudText>
                                 </div>
-                                <div>
-                                    <MudButton Class="w-[142px] h-12 !text-[var(--mud-palette-text-secondary)] !capitalize !text-xl !font-medium !rounded-2xl !border-2 !border-[var(--mud-palette-gray-dark)]">Browse File</MudButton>
+                                <div  class="mt-8 md:!mt-0">
+                                    <MudButton Class="w-30 h-8 !text-[var(--mud-palette-text-secondary)] !capitalize !font-medium text-base !rounded-2xl !border-2 !border-[var(--mud-palette-gray-dark)] md:w-[142px] md:h-12 md:mb-0 md:!text-xl">Browse File</MudButton>
                                 </div>
                             </MudPaper>
                         </ActivatorContent>
@@ -148,13 +185,17 @@
         </div>
         <MudPaper 
             Elevation="0"
-            Class="w-full  h-66 flex items-center justify-center !gap-12 !rounded-3xl !bg-[var(--mud-palette-gray-light)]/20 !p-6 overflow-hidden"
+            Class="w-[95vw] min-h-40 !p-4 !mt-[23px] mb-10 !rounded-3xl !bg-[var(--mud-palette-gray-light)]/20 md:!p-6 md:h-62 md:!my-0 xl:w-full"
         >
-        
+            <div class="min-h-32 flex flex-row items-center overflow-x-auto !gap-6 sm:h-50 ">
+                @foreach (var file in FileList)
+                {
+                    <div class="size-32 md:size-50 flex-shrink-0">
+                        <img src="/images/nft/nft_payl_koyn_princess.jpg" alt=""/>
+                    </div>
+                }
+            </div>
+            
         </MudPaper>
     </div>
-</section>
-
-<section class="lg:hidden container mx-auto flex items-center justify-center h-screen !px-4">
-    <MudText Typo="Typo.h2" Class="text-[var(--mud-palette-primary)] !font-bold text-center!">Mobile Coming Soon...</MudText>
 </section>
