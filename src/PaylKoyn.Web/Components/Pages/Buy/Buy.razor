@@ -22,19 +22,19 @@
     <meta name="twitter:creator" content="@@saib_inc" />
 </HeadContent>
 
-<section class="relative !pb-10 lg:!pb-0 lg:h-[calc(100vh-95.805px)]">
+<section class="relative !pb-10 xl:!pb-0 xl:h-[calc(100vh-95.805px)]">
     <div class="overflow-hidden">
         <MudImage Src="/images/background.svg" Alt="" class="absolute top-0 left-[-194px] -z-10" />
         <MudImage Src="/images/background.svg" Alt="" class="absolute top-0 right-[-190px] -z-10 scale-x-[-1]" />
     </div>
     <div class="container !px-4 flex flex-col items-center !pt-[40.85px] gap-10 md:gap-14 md:h-full sm:!mx-auto">
         <div class="rounded-3xl !bg-[var(--mud-palette-primary)] w-full max-w-[1327px]">
-            <div class="w-full flex flex-col items-center items-stretch !p-4 !gap-4 md:!gap-10 md:!p-10 md:flex-row">
+            <div class="w-full flex flex-col items-center items-stretch !p-4 !gap-4 md:!gap-10 md:!p-10 xl:flex-row">
                 <div
-                    class="!w-full aspect-square !rounded-[12px] overflow-hidden flex-shrink-0 md:!w-[479px] md:!h-[479px]">
+                    class="!w-full flex aspect-square !rounded-[12px] overflow-hidden items-center flex-shrink-0 md:!w-full md:!h-[479px] xl:!w-[479px]">
                     <MudImage Src="/images/nft/nft_payl_koyn-caesar.png" Alt="Payl Koyn" Elevation="0" />
                 </div>
-                <div class="flex flex-col justify-between gap-4 md:gap-auto">
+                <div class="w-full flex flex-col justify-between gap-4 md:gap-auto">
                     <div class="flex justify-between !gap-6 md:!gap-[65px]">
                         <div class="flex flex-col">
                             <div class="flex gap-1 md:gap-2 items-center">
@@ -61,7 +61,7 @@
                                 </MudText>
                             </div>
                         </div>
-                        <div class="!w-[126px] aspect-square flex-shrink-0 md:!w-[233px]">
+                        <div class="!w-[126px] aspect-square flex-shrink-0 md:!w-[233px] ">
                             <MudImage Src="/images/qr_sample.webp" Alt="sample qr" />
                         </div>
                     </div>
@@ -90,7 +90,7 @@
                             </div>
                             <div class="flex justify-center">
                                 <MudButton
-                                    Class="button-profile-gradient !p-[2px] !rounded-full !w-[314px] !h-[34px] mx-auto md:!w-[680px] md:!h-12">
+                                    Class="button-profile-gradient !p-[2px] !rounded-full !w-full !h-[34px] mx-auto md:!h-12">
                                     <div
                                         class="!bg-[var(--mud-palette-secondary)] w-full !h-[32px] flex items-center justify-center !rounded-full md:!h-11">
                                         <MudImage Src="/images/buy_now.svg" Alt="Buy now" />
@@ -124,9 +124,9 @@
     </div>
 </section>
 <section class="relative h- !bg-[var(--mud-palette-primary)] pt-8 !pb-[47.97px] md:pt-20 md:h-[353.013px]">
-    <div class="container mx-auto">
+    <div class="container mx-auto px-2 xl:px-0">
         <MudPaper Elevation="0"
-            Class="w-[338px] !h-40 !p-4 mx-auto flex items-center justify-center !gap-12 !rounded-3xl !bg-[var(--mud-palette-secondary)]/10 md:!p-6 md:mt-20 md:w-full md:h-66">
+            Class="w-full !h-40 !p-4 mx-auto flex items-center justify-center !gap-12 !rounded-3xl !bg-[var(--mud-palette-secondary)]/10 md:!p-6 md:mt-20 md:w-full md:h-66">
             <div class="w-full !h-full flex items-center overflow-x-auto !gap-4 sm:h-[61.25px] sm:!gap-[23.5px]">
                 @for(int x=0; x < 8; x++)
                 {
