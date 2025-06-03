@@ -51,9 +51,10 @@ public class OutputBySlotReducer(
         if (!transactions.Any()) return;
 
         ulong currentSlot = block.Header().HeaderBody().Slot();
+        string blockHash = Convert.ToHexStringLower(block.Header().HeaderBody().BlockBodyHash());
 
-        IEnumerable<(string txHash, IEnumerable<TransactionOutput> outputs)> outputsByTx = transactions
-            .Select(tx => (tx.Hash(), tx.Outputs()));
+        IEnumerable<(string Hash, byte[]? ScriptDataHash, IEnumerable<TransactionOutput> Outputs)> outputsByTx = transactions
+            .Select(tx => (tx.Hash(), tx.ScriptDataHash(), tx.Outputs()));
 
         IEnumerable<string> inputs = transactions.SelectMany(tx =>
             tx.Inputs().Select(input => $"{Convert.ToHexStringLower(input.TransactionId)}#{input.Index}"));
@@ -64,33 +65,37 @@ public class OutputBySlotReducer(
             .Where(obs => string.IsNullOrEmpty(obs.SpentTxHash))
             .ToListAsync();
 
-        ProcessOutputs(outputsByTx, currentSlot, dbContext);
+        ProcessOutputs(outputsByTx, blockHash, currentSlot, dbContext);
         ProcessInputs(resolvedInputs, transactions, currentSlot, dbContext);
 
         await dbContext.SaveChangesAsync();
     }
 
     private static void ProcessOutputs(
-        IEnumerable<(string txHash, IEnumerable<TransactionOutput> outputs)> outputsByTx,
+        IEnumerable<(string Hash, byte[]? ScriptDataHash, IEnumerable<TransactionOutput> Outputs)> outputsByTx,
+        string blockHash,
         ulong currentSlot,
         PaylKoynDbContext dbContext
     )
     {
         IEnumerable<OutputBySlot> newOutputs = outputsByTx
             .SelectMany(obtx =>
-                obtx.outputs
+                obtx.Outputs
                 .Select((Output, Index) =>
                 {
                     if (!ReducerUtils.TryGetBech32Address(Output, out string bech32Address)) return null;
                     ReducerUtils.TryGetScripHash(Output, out string scriptHash);
 
+                    string? scriptDataHash = obtx.ScriptDataHash is not null ? Convert.ToHexStringLower(obtx.ScriptDataHash) : null;
                     OutputBySlot newEntry = new(
                         Slot: currentSlot,
-                        OutRef: obtx.txHash + "#" + Index,
+                        OutRef: obtx.Hash + "#" + Index,
                         SpentTxHash: string.Empty,
                         SpentSlot: null,
+                        BlockHash: blockHash,
+                        ScriptDataHash: scriptDataHash,
                         Address: bech32Address,
-                        OutputRaw: Output.Raw.HasValue ? Output.Raw.Value.ToArray() : CborSerializer.Serialize(Output),
+                        Raw: Output.Raw.HasValue ? Output.Raw.Value.ToArray() : CborSerializer.Serialize(Output),
                         ScriptHash: scriptHash
                     );
 

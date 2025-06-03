@@ -1,16 +1,11 @@
-using System.Text;
-using System.Text.Json;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
 using Chrysalis.Cbor.Serialization;
-using Chrysalis.Cbor.Types.Cardano.Core;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models;
 using PaylKoyn.Data.Models.Api.Response.Data;
-using PaylKoyn.Data.Models.Common;
 using PaylKoyn.Data.Models.Entity;
-using PaylKoyn.Data.Utils;
 using CMetadata = Chrysalis.Cbor.Types.Cardano.Core.Metadata;
 using MetadatumMap = Chrysalis.Cbor.Types.Cardano.Core.Transaction.MetadatumMap;
 

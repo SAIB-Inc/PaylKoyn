@@ -49,7 +49,7 @@ public class Balance(
         }
 
         IEnumerable<TransactionOutput> resolvedTxOutputs = resolvedOutRefs
-            .Select(e => CborSerializer.Deserialize<TransactionOutput>(e.OutputRaw));
+            .Select(e => CborSerializer.Deserialize<TransactionOutput>(e.Raw));
 
         ulong totalLovelace = resolvedTxOutputs
             .Select(output => output.Amount().Lovelace())
