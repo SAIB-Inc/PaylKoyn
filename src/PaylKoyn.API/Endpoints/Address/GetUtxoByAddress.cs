@@ -22,7 +22,7 @@ public class GetUtxoByAddress(
 
         Description(d => d
             .WithTags("Address")
-            .Produces<BalanceByAddressResponse>(StatusCodes.Status200OK)
+            .Produces<GetUtxoByAddressResponse[]>(StatusCodes.Status200OK)
             .ProducesProblemFE(StatusCodes.Status400BadRequest)
             .ProducesProblemFE(StatusCodes.Status500InternalServerError)
             .WithName("GetUtxosByAddress")
@@ -51,11 +51,11 @@ public class GetUtxoByAddress(
 
         if (!resolvedOutRefs.Any())
         {
-            await SendAsync(new BalanceByAddressResponse(0, []), cancellation: cancellationToken);
+            await SendAsync(new List<GetUtxoByAddressResponse>(), cancellation: cancellationToken);
             return;
         }
 
-        IEnumerable<UnspentOutput> unspentOutputs = [.. resolvedOutRefs
+        IEnumerable<GetUtxoByAddressResponse> unspentOutputs = [.. resolvedOutRefs
             .Select(outputBySlot =>
             {
                 TransactionOutput txOutput = CborSerializer.Deserialize<TransactionOutput>(outputBySlot.Raw);
@@ -83,9 +83,10 @@ public class GetUtxoByAddress(
                     amounts.AddRange(assetAmounts);
                 }
 
-                return new UnspentOutput(
+                return new GetUtxoByAddressResponse(
                     Address: address!,
                     TxHash: txHash,
+                    TxIndex: index,
                     OutputIndex: index,
                     Amount: amounts,
                     Block: outputBySlot.BlockHash,
