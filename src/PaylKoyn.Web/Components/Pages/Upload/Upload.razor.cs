@@ -10,17 +10,27 @@ public partial class Upload
     [Inject]
     public required IconService IconService { get; set; }
     
-    // [Inject]
-    // public required UploadService UploadService { get; set; }
+    [Inject]
+    public required UploadService UploadService { get; set; }
+
+    [Inject]
+    public required NavigationManager Navigation { get; set; }
 
     protected readonly List<UploadFileState> FileList = [];
     protected string? UploadAddress;
 
+    #region Open Graph Tags
+
+    protected string OgUrl => $"{Navigation.BaseUri}{Navigation.ToBaseRelativePath(Navigation.Uri)}";
+    protected string OgImageUrl => $"{Navigation.BaseUri}images/paylkoyn_og.webp";
+
+    #endregion
+
     protected override async Task OnInitializedAsync()
     {
-        //Request upload address on page load
-        // var response = await UploadService.RequestUploadAsync();
-        // UploadAddress = response?.Id;
+        // Request upload address on page load
+        var response = await UploadService.RequestUploadAsync();
+        UploadAddress = response?.Id;
         StateHasChanged();
     }
 
@@ -28,12 +38,12 @@ public partial class Upload
     {
         foreach (var file in e.GetMultipleFiles())
         {
-            //Estimate fee for this file
-            // var feeResponse = await UploadService.EstimateFeeAsync(file.Size);
+            // Estimate fee for this file
+            var feeResponse = await UploadService.EstimateFeeAsync(file.Size);
             var uploadState = new UploadFileState
             {
                 File = file,
-                // EstimatedFee = feeResponse?.EstimatedFee ?? 0,
+                EstimatedFee = feeResponse?.EstimatedFee ?? 0,
                 Status = UploadStatus.Ready
             };
             
@@ -49,10 +59,10 @@ public partial class Upload
         uploadState.Status = UploadStatus.Uploading;
         StateHasChanged();
 
-        // var (isSuccess, message) = await UploadService.UploadFileAsync(UploadAddress, uploadState.File);
+        var (isSuccess, message) = await UploadService.UploadFileAsync(UploadAddress, uploadState.File);
         
-        // uploadState.Status = isSuccess ? UploadStatus.Completed : UploadStatus.Error;
-        // uploadState.Message = message;
+        uploadState.Status = isSuccess ? UploadStatus.Completed : UploadStatus.Error;
+        uploadState.Message = message;
         StateHasChanged();
     }
 
