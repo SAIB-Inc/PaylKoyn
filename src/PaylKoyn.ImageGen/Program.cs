@@ -3,6 +3,7 @@ using Chrysalis.Tx.Providers;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Paylkoyn.ImageGen.Services;
+using Paylkoyn.ImageGen.Workers;
 using PaylKoyn.Data.Services;
 using PaylKoyn.ImageGen.Data;
 using PaylKoyn.ImageGen.Services;
@@ -26,6 +27,12 @@ builder.Services.AddHttpClient("PaylKoynNodeClient", client =>
     client.BaseAddress = new Uri(builder.Configuration.GetValue("PaylKoynNodeUrl", "http://localhost:5246/api/v1"));
     client.DefaultRequestHeaders.Add("Accept", "application/json");
 });
+
+// Workers
+builder.Services.AddHostedService<MintWorker>();
+builder.Services.AddHostedService<MintPaymentWorker>();
+builder.Services.AddHostedService<FileUploadPaymentWorker>();
+builder.Services.AddHostedService<FileUploadWorker>();
 
 WebApplication app = builder.Build();
 
