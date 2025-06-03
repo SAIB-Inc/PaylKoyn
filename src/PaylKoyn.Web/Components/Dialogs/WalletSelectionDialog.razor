@@ -1,0 +1,41 @@
+@using PaylKoyn.Web.Services
+
+@namespace PaylKoyn.Web.Components.Dialogs
+
+<MudDialog Class="!rounded-3xl !w-210 [&_.mud-dialog-title]:!px-0 [&_.mud-button-close_.mud-icon-button-label_.mud-icon-root]:!text-[var(--mud-palette-text-primary)]">
+    <TitleContent>
+        <div class="flex border-b-2 ! border-[var(--mud-palette-gray-dark)] !px-6 !pb-5 items-start !gap-4 sm:!gap-6 sm:items-center">
+            <div class="border-2 border-[var(--mud-palette-gray-dark)] rounded-full !p-3 sm:!p-[17.5px]">
+                <MudIcon Icon="@IconService.WalletIcon" Class="!text-2xl sm:!text-[35px]"/>
+            </div>
+            <div class="!w-[80%] sm:!w-auto">
+                <MudText Class="!font-semibold !text-xl sm:!text-2xl">Choose your wallet</MudText>
+                <MudText Class="!text-[var(--mud-palette-background)] !text-sm sm:!text-base">
+                    <span>By connecting your wallet, you agree to the </span>
+                    <span class="!font-bold">Terms & Conditions </span>
+                    <span>and </span>
+                    <span class="!font-bold">Privacy Policy</span>
+                </MudText>
+            </div>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <div class="grid !pb-4 max-h-72 overflow-y-auto grid-cols-1 sm:grid-cols-2">
+            @foreach(CardanoWallet wallet in ConnectedWallets)
+            {
+                <MudButton 
+                    OnClick="() => SelectWallet(wallet)"
+                    Class="[&_.mud-button-label]:justify-start! [&_.mud-button-label]:!gap-6"
+                >
+                    <div class="w-14 aspect-square rounded-full flex items-center justify-center !p-2">
+                        <MudImage
+                            Src="@wallet.Icon"
+                            Alt="@wallet.Name"
+                        />
+                    </div>
+                    <MudText Class="!text-xl !font-semibold !capitalize">@wallet.Name</MudText>
+                </MudButton>
+            }
+        </div>
+    </DialogContent>
+</MudDialog>

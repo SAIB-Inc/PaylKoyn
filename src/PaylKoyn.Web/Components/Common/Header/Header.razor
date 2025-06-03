@@ -25,16 +25,33 @@
             }
             else
             {
-                <MudButton
-                    OnClick="OnWalletConnectClicked" 
-                    Class="!text-xl !text-[var(--mud-palette-primary)] !rounded-full !uppercase !p-[2px] !animate-rotate-border button-color-gradient !w-max lg:!w-47 lg:!h-12"
-                >
-                    <div class="!bg-[var(--mud-palette-secondary)] !w-full flex items-center justify-center !text-center rounded-full transition-all duration-150 hover:!bg-[var(--mud-palette-secondary-lighten)] active:!bg-[var(--mud-palette-secondary-darken)] px-3 py-2 lg:!h-11">
-                        <MudText>
-                            <span class="!font-semibold">Connect Wallet</span>
-                        </MudText>
-                    </div>
-                </MudButton>
+                @if(SelectedWallet is null)
+                {
+                    <MudButton
+                        OnClick="OnWalletConnectClicked" 
+                        Class="!text-xl !text-[var(--mud-palette-primary)] !rounded-full !uppercase !p-[2px] !animate-rotate-border button-color-gradient !w-max lg:!w-47 lg:!h-12"
+                    >
+                        <div class="!bg-[var(--mud-palette-secondary)] !w-full flex items-center justify-center !text-center rounded-full transition-all duration-150 hover:!bg-[var(--mud-palette-secondary-lighten)] active:!bg-[var(--mud-palette-secondary-darken)] px-3 py-2 lg:!h-11">
+                            <MudText>
+                                <span class="!font-semibold">Connect Wallet</span>
+                            </MudText>
+                        </div>
+                    </MudButton>
+                }
+                else
+                {
+                    <MudButton 
+                        OnClick="() => SelectedWallet = null"
+                        Class="!min-w-12 !max-w-12 !h-12 !rounded-full button-profile-gradient !p-[2px]"
+                    >
+                        <div class="!rounded-full overflow-hidden">
+                            <MudImage
+                                Src="/images/nft/nft_payl_koyn_princess.jpg"
+                                Alt="profile image"
+                            />
+                        </div>
+                    </MudButton>
+                }
             }
         </div>
     </div>
