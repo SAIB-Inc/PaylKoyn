@@ -10,6 +10,6 @@ public record OutputBySlot(
     string Address,
     string BlockHash,
     string? ScriptDataHash,
-    string ScriptHash,
+    string? ScriptHash,
     byte[] Raw
 ) : IReducerModel;

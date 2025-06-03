@@ -84,7 +84,7 @@ public class OutputBySlotReducer(
                 .Select((Output, Index) =>
                 {
                     if (!ReducerUtils.TryGetBech32Address(Output, out string bech32Address)) return null;
-                    ReducerUtils.TryGetScripHash(Output, out string scriptHash);
+                    ReducerUtils.TryGetScripHash(Output, out string? scriptHash);
 
                     string? scriptDataHash = obtx.ScriptDataHash is not null ? Convert.ToHexStringLower(obtx.ScriptDataHash) : null;
                     OutputBySlot newEntry = new(

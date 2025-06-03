@@ -29,9 +29,9 @@ public static class ReducerUtils
         }
     }
 
-    public static bool TryGetScripHash(in TransactionOutput output, out string scriptHash)
+    public static bool TryGetScripHash(in TransactionOutput output, out string? scriptHash)
     {
-        scriptHash = string.Empty;
+        scriptHash = null;
 
         try
         {
