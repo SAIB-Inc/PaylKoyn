@@ -29,13 +29,13 @@
     </div>
     <div class="container !px-4 flex flex-col items-center !pt-[40.85px] gap-10 md:gap-14 md:h-full sm:!mx-auto">
         <div class="rounded-3xl !bg-[var(--mud-palette-primary)] w-full max-w-[1327px]">
-            <div class="w-full flex flex-col items-center items-stretch !p-4 !gap-4 md:!gap-10 md:!p-10 xl:flex-row">
+            <div class="w-full flex flex-col items-center items-stretch !p-4 !gap-4 md:!gap-10 md:!p-10 lg:flex-row lg:!gap-6 lg:!p-6  xl:!p-10  xl:!gap-10">
                 <div
-                    class="!w-full flex aspect-square !rounded-[12px] overflow-hidden items-center flex-shrink-0 md:!w-full md:!h-[479px] xl:!w-[479px]">
-                    <MudImage Src="/images/nft/nft_payl_koyn-caesar.png" Alt="Payl Koyn" Elevation="0" />
+                    class="bg-[url(/images/nft/nft_payl_koyn-caesar.png)] bg-cover bg-center !w-full flex aspect-square !rounded-[12px] overflow-hidden items-center flex-shrink-0 md:!w-full md:!h-[479px] lg:!w-[343px] lg:!h-[378px] xl:!w-[479px] xl:!h-[479px]">
+                    @* <MudImage Src="/images/nft/nft_payl_koyn-caesar.png" Alt="Payl Koyn" Elevation="0" /> *@
                 </div>
                 <div class="w-full flex flex-col justify-between gap-4 md:gap-auto">
-                    <div class="flex justify-between !gap-6 md:!gap-[65px]">
+                    <div class="flex justify-between !gap-6 md:!gap-[65px] lg:!gap-[25px] xl:!gap-[65px]">
                         <div class="flex flex-col">
                             <div class="flex gap-1 md:gap-2 items-center">
                                 <MudText Class="!text-base md:!text-xl text-[var(--mud-palette-secondary)]"
@@ -45,15 +45,15 @@
                                 <MudIcon Icon="@IconService.CheckIcon" Class="!text-base md:!text-2xl" />
                             </div>
                             <div>
-                                <MudText Class="!text-[20px] !font-bold md:!text-[40px]" Style="font-family: Inter;">
+                                <MudText Class="!text-[20px] !font-bold sm:!text-[24px] md:!text-[40px] lg:!text-[32px] xl:!text-[40px]" Style="font-family: Inter;">
                                     PAYL KOYN #1042
                                 </MudText>
-                                <MudText Class="!text-xs md:!text-base" Style="font-family: Inter;">
-                                    <span>
+                                <MudText Class="!text-xs sm:!text-base md:!text-base lg:!text-sm xl:!text-base" Style="font-family: Inter;">
+                                    <span class="mb-1">
                                         Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod
                                         tempor invidunt ut labore et.
                                     </span>
-
+                                    
                                     <span class="hidden md:!block">
                                         Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod
                                         tempor invidunt ut labore et.
@@ -61,24 +61,24 @@
                                 </MudText>
                             </div>
                         </div>
-                        <div class="!w-[126px] aspect-square flex-shrink-0 md:!w-[233px] ">
+                        <div class="!w-[126px] aspect-square flex-shrink-0 md:!w-[233px] lg:!w-[172px] xl:!w-[233px]">
                             <MudImage Src="/images/qr_sample.webp" Alt="sample qr" />
                         </div>
                     </div>
                     <div class="flex flex-col w-full rounded-[8px]">
                         <div
-                            class="!rounded-t-[8px] !bg-[var(--mud-palette-gray-darker)] !border-1 !border-[var(--mud-palette-gray-dark)] !border-b-0 !py-3 !pl-6 md:!pl-3">
-                            <MudText Class="!font-semibold !text-base md:!text-2xl" Style="font-family: Inter;">
+                            class="!rounded-t-[8px] !bg-[var(--mud-palette-gray-darker)] !border-1 !border-[var(--mud-palette-gray-dark)] !border-b-0 !py-3 !pl-6 md:!pl-3 lg:!pl-4">
+                            <MudText Class="!font-semibold !text-base md:!text-2xl lg:!text-[22px] xl:!text-2xl" Style="font-family: Inter;">
                                 Current Price
                             </MudText>
                         </div>
                         <div
-                            class="!rounded-b-[8px] !border-1 !border-solid !border-[var(--mud-palette-gray-dark)] !pt-4 !pb-[12.73px] !pl-3 !pr-[13px] md:!pl-[26px] md:!pr-6 md:!pt-[25px] md:!pb-6">
-                            <div class="flex justify-between pb-4 md:pb-6">
+                            class="!rounded-b-[8px] !border-1 !border-solid !border-[var(--mud-palette-gray-dark)] !pt-4 !pb-[12.73px] !pl-3 !pr-[13px] md:!pl-[26px] md:!pr-6 md:!pt-[25px] md:!pb-6 lg:!pb-4 lg:!pt-4 xl:!pb-6 xl:!pt-[25px]">
+                            <div class="flex justify-between !pb-4 md:!pb-6 lg:!pb-3 xl:!pb-6">
                                 <div class="flex gap-[3.67px] md:gap-[22px]">
-                                    <MudIcon Icon="@IconService.PaylIcon" Class="!text-[24px] md:!text-[40px]">
+                                    <MudIcon Icon="@IconService.PaylIcon" Class="!text-[24px] md:!text-[40px] lg:!text-[32px] xl:!text-[40px]">
                                     </MudIcon>
-                                    <MudText Class="self-center !text-2xl md:!text-[40px] !font-bold"
+                                    <MudText Class="self-center !text-2xl md:!text-[40px] lg:!text-[32px] xl:!text-[40px] !font-bold"
                                         Style="font-family: Oxanium;">
                                         250.50
                                     </MudText>
@@ -92,7 +92,7 @@
                                 <MudButton
                                     Class="button-profile-gradient !p-[2px] !rounded-full !w-full !h-[34px] mx-auto md:!h-12">
                                     <div
-                                        class="!bg-[var(--mud-palette-secondary)] w-full !h-[32px] flex items-center justify-center !rounded-full md:!h-11">
+                                        class="!bg-[var(--mud-palette-secondary)] w-full !h-[32px] flex items-center justify-center !rounded-full md:!h-11 lg:!h-[38.45px] xl:!h-11">
                                         <MudImage Src="/images/buy_now.svg" Alt="Buy now" />
                                     </div>
                                 </MudButton>
@@ -103,15 +103,15 @@
             </div>
         </div>
 
-        <div class="max-w-[1327px] flex flex-col gap-6 md:!gap-10 md:mx-0">
+        <div class="max-w-[1327px] flex flex-col gap-6 md:!gap-10 lg:!gap-6 xl:!gap-10 md:mx-0">
             <MudText
-                Class="!text-left !text-white !capitalize !font-bold !text-[32px] md:!leading-[72px] lg:!text-[40px]"
+                Class="!text-left !text-white !capitalize !font-bold !text-[32px] lg:!text-[32px] xl:!text-[40px]"
                 Style="font-family: Oxanium;">
                 <span>What is </span>
-                <span class="!font-extrabold">PAYL KOYN?</span>
+                <span class="!font-extrabold">PAYLs?</span>
             </MudText>
             <MudText
-                Class="!text-left !text-white opacity-60 !text-base !leading-[26px] md:!text-[22px] md:!leading-[36px]"
+                Class="!text-left !text-white opacity-60 !text-base !leading-[26px] md:!text-[22px] md:!leading-[36px] lg:!text-[20px] xl:!text-[22px]"
                 Style="font-family: Inter;">
                 Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut
                 labore et dolore magna
