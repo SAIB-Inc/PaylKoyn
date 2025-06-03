@@ -1,5 +1,6 @@
 using FastEndpoints;
-namespace PaylKoyn.API.Endpoints;
+
+namespace PaylKoyn.API.Endpoints.Epoch;
 
 public class GetProtocolParameters() : EndpointWithoutRequest
 {

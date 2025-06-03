@@ -9,7 +9,7 @@ using PaylKoyn.Data.Models.Entity;
 using CMetadata = Chrysalis.Cbor.Types.Cardano.Core.Metadata;
 using MetadatumMap = Chrysalis.Cbor.Types.Cardano.Core.Transaction.MetadatumMap;
 
-namespace PaylKoyn.API.Endpoints;
+namespace PaylKoyn.API.Endpoints.Transaction;
 
 public class GetMetadataByTxHash(IDbContextFactory<PaylKoynDbContext> dbContextFactory) : EndpointWithoutRequest
 {
