@@ -13,6 +13,8 @@ public class IconService(IWebHostEnvironment env)
     public string LinkedInIcon => _cache.TryGetValue("linkedin.svg", out string? value) ? value : LoadIcon("linkedin.svg");
     public string FacebookIcon => _cache.TryGetValue("facebook.svg", out string? value) ? value : LoadIcon("facebook.svg");
     public string GithubIcon => _cache.TryGetValue("github.svg", out string? value) ? value : LoadIcon("github.svg");
+    public string CheckIcon => _cache.TryGetValue("check.svg", out string? value) ? value : LoadIcon("check.svg");
+    public string PaylIcon => _cache.TryGetValue("payl.svg", out string? value) ? value : LoadIcon("payl.svg");
 
     public string LoadIcon(string iconName)
     {
