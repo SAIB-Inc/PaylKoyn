@@ -8,10 +8,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+// Configure SignalR for larger buffer sizes
+builder.Services.AddSignalR(options =>
+{
+    options.MaximumReceiveMessageSize = 32 * 1024 * 1024; // 32MB
+});
+
 builder.Services.AddMudServices();
 
 builder.Services.AddSingleton<IconService>();
 builder.Services.AddScoped<UploadService>();
+builder.Services.AddScoped<DAppBridgeService>();
 builder.Services.AddHttpClient();
 
 var app = builder.Build();

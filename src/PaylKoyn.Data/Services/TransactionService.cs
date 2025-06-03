@@ -6,9 +6,11 @@ using Chrysalis.Cbor.Types.Cardano.Core.Common;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using Chrysalis.Network.Cbor.LocalStateQuery;
 using Chrysalis.Tx.Builders;
+using Chrysalis.Tx.Models;
 using Chrysalis.Tx.Models.Cbor;
 using Chrysalis.Tx.Utils;
 using Chrysalis.Wallet.Utils;
+using PaylKoyn.Data.Models.Template;
 using Address = Chrysalis.Wallet.Models.Addresses.Address;
 using CborAddress = Chrysalis.Cbor.Types.Cardano.Core.Common.Address;
 
@@ -17,6 +19,19 @@ namespace PaylKoyn.Data.Services;
 
 public class TransactionService()
 {
+    public static TransactionTemplate<TransferParams> Transfer(ICardanoDataProvider provider)
+    {
+        TransactionTemplate<TransferParams> transferTemplate = TransactionTemplateBuilder<TransferParams>.Create(provider)
+            .AddOutput((options, parameters) =>
+            {
+                options.To = "to";
+                options.Amount = new Lovelace(parameters.Amount);
+            })
+            .Build();
+
+        return transferTemplate;
+    }
+
     public List<Transaction> UploadFile(
         string address,
         byte[] file,
