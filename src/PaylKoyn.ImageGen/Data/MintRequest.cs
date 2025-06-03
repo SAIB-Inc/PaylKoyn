@@ -4,7 +4,6 @@ public enum MintStatus
 {
     Pending,
     PaymentReceived,
-    MetadataGenerated,
     UploadPaymentSent,
     ImageUploaded,
     Minted,
