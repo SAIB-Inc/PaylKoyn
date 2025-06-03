@@ -84,7 +84,7 @@ public class GetUtxoByAddress(
                     Index: index,
                     Amount: amounts,
                     Block: outputBySlot.BlockHash,
-                    DataHash: null,
+                    DataHash: outputBySlot.ScriptHash,
                     InlineDatum: txOutput.DatumOption()?.Data() is not null
                         ? Convert.ToHexStringLower(txOutput.DatumOption()?.Data() ?? [])
                         : null,

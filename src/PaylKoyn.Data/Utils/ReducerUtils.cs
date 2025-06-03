@@ -1,5 +1,7 @@
+using Chrysalis.Cbor.Extensions;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
 using Chrysalis.Cbor.Serialization;
+using Chrysalis.Cbor.Types;
 using Chrysalis.Cbor.Types.Cardano.Core.Common;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using Chrysalis.Wallet.Utils;
@@ -34,7 +36,7 @@ public static class ReducerUtils
         try
         {
             if (output.ScriptRef() is null) return false;
-            Script script = CborSerializer.Deserialize<Script>(output.ScriptRef()!);
+            Script script = CborSerializer.Deserialize<Script>(output.GetScriptRef());
 
             byte[] scriptBytes = [];
 
@@ -56,7 +58,7 @@ public static class ReducerUtils
                 default:
                     return false;
             }
-            
+
             scriptHash = Convert.ToHexStringLower(HashUtil.Blake2b224(scriptBytes));
             return true;
         }
@@ -64,5 +66,15 @@ public static class ReducerUtils
         {
             return false;
         }
+    }
+    
+    private static byte[]? GetScriptRef(this TransactionOutput self)
+    {
+        if (self is PostAlonzoTransactionOutput postAlonzoTransactionOutput)
+        {
+            return postAlonzoTransactionOutput.ScriptRef?.GetValue();
+        }
+
+        return null;
     }
 }
