@@ -48,9 +48,6 @@ public class GetProtocolParameters() : EndpointWithoutRequest
             15
         );
 
-
-
-
         await SendOkAsync(response, cancellation: ct);
     }
 

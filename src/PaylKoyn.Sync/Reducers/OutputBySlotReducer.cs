@@ -82,6 +82,7 @@ public class OutputBySlotReducer(
                 .Select((Output, Index) =>
                 {
                     if (!ReducerUtils.TryGetBech32Address(Output, out string bech32Address)) return null;
+                    ReducerUtils.TryGetScripHash(Output, out string scriptHash);
 
                     OutputBySlot newEntry = new(
                         Slot: currentSlot,
@@ -89,7 +90,8 @@ public class OutputBySlotReducer(
                         SpentTxHash: string.Empty,
                         SpentSlot: null,
                         Address: bech32Address,
-                        OutputRaw: Output.Raw.HasValue ? Output.Raw.Value.ToArray() : CborSerializer.Serialize(Output)
+                        OutputRaw: Output.Raw.HasValue ? Output.Raw.Value.ToArray() : CborSerializer.Serialize(Output),
+                        ScriptHash: scriptHash
                     );
 
                     return newEntry;
