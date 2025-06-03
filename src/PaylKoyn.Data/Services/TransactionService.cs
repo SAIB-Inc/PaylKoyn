@@ -44,7 +44,7 @@ public class TransactionService()
     public ulong CalculateFee(
         int fileSize,
         ulong revenueFee,
-        ulong maxTxSize
+        ulong maxTxSize = 16384
     )
     {
         decimal splitCount = Math.Ceiling((decimal)fileSize / maxTxSize);
