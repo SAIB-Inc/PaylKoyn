@@ -29,6 +29,14 @@ builder.Services.AddHttpClient("PaylKoynNodeClient", client =>
 
 WebApplication app = builder.Build();
 
+// ensure migrations are applied
+using (IServiceScope scope = app.Services.CreateScope())
+{
+    IDbContextFactory<MintDbContext> dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<MintDbContext>>();
+    using MintDbContext dbContext = dbContextFactory.CreateDbContext();
+    await dbContext.Database.MigrateAsync();
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
