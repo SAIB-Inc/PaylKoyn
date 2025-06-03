@@ -4,6 +4,7 @@ public class IconService(IWebHostEnvironment env)
 {
     private readonly Dictionary<string, string> _cache = [];
 
+    public string CopyIcon => _cache.TryGetValue("copy.svg", out string? value) ? value : LoadIcon("copy.svg");
     public string DeleteIcon => _cache.TryGetValue("delete.svg", out string? value) ? value : LoadIcon("delete.svg");
     public string FacebookIcon => _cache.TryGetValue("facebook.svg", out string? value) ? value : LoadIcon("facebook.svg");
     public string GithubIcon => _cache.TryGetValue("github.svg", out string? value) ? value : LoadIcon("github.svg");
