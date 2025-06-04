@@ -12,7 +12,7 @@ using PaylKoyn.Data.Models;
 namespace PaylKoyn.Data.Migrations
 {
     [DbContext(typeof(PaylKoynDbContext))]
-    [Migration("20250604011302_InitialCreate")]
+    [Migration("20250604012114_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
