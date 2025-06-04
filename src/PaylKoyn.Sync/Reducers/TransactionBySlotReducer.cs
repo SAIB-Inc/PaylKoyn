@@ -20,7 +20,17 @@ public class TransactionBySlotReducer(
     public async Task RollBackwardAsync(ulong slot)
     {
         await using PaylKoynDbContext dbContext = await dbContextFactory.CreateDbContextAsync();
-        await dbContext.TransactionsBySlot.Where(x => x.Slot >= slot).ExecuteDeleteAsync();
+
+        IEnumerable<TransactionSubmissions> submissionsToDelete = [.. dbContext.TransactionSubmissions
+            .Where(x => x.ConfirmedSlot >= slot)];
+
+        IEnumerable<TransactionBySlot> txsToDelete = [.. dbContext.TransactionsBySlot
+            .Where(x => x.Slot >= slot)];
+
+        dbContext.TransactionSubmissions.RemoveRange(submissionsToDelete);
+        dbContext.TransactionsBySlot.RemoveRange(txsToDelete);
+
+        await dbContext.SaveChangesAsync();
     }
 
     public async Task RollForwardAsync(Block block)
@@ -50,6 +60,23 @@ public class TransactionBySlotReducer(
         }).Where(x => x is not null)!;
 
         dbContext.TransactionsBySlot.AddRange(newEntries);
+
+        IEnumerable<string> transactionHashes = [.. newEntries.Select(x => x.Hash)];
+
+        IEnumerable<TransactionSubmissions> inflightTransactions = [.. dbContext.TransactionSubmissions
+            .Where(ts => ts.Status == TransactionStatus.Inflight && transactionHashes.Contains(ts.Hash))];
+
+        foreach (TransactionSubmissions submission in inflightTransactions)
+        {
+            TransactionSubmissions updatedSubmission = submission with
+            {
+                Status = TransactionStatus.Confirmed,
+                ConfirmedSlot = currentSlot
+            };
+
+            dbContext.Entry(submission).CurrentValues.SetValues(updatedSubmission);
+        }
+
         await dbContext.SaveChangesAsync();
     }
 }

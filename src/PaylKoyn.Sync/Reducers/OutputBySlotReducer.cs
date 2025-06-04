@@ -124,17 +124,21 @@ public class OutputBySlotReducer(
                 return resolvedInputsByTx.Select(ribtx => (tx.Hash(), ribtx));
             });
 
-        IEnumerable<OutputBySlot> updatedOutputs = resolvedInputsByTx.Select(resolvedInputByTx =>
+        resolvedInputsByTx.ToList().ForEach(resolvedInputByTx =>
         {
             OutputBySlot? existingOutput = dbContext.OutputsBySlot.Local
                 .FirstOrDefault(e => e.OutRef == resolvedInputByTx.resolvedInput.OutRef);
 
-            if (existingOutput != null) return null;
+            OutputBySlot updatedOutput = resolvedInputByTx.resolvedInput with { SpentTxHash = resolvedInputByTx.spentTxHash, SpentSlot = currentSlot };
 
-            return resolvedInputByTx.resolvedInput with { SpentTxHash = resolvedInputByTx.spentTxHash, SpentSlot = currentSlot };
-        })
-        .Where(e => e != null)!;
+            if (existingOutput != null)
+            {
+                dbContext.Remove(existingOutput);
+                dbContext.Add(updatedOutput);
+                return;
+            }
 
-        dbContext.UpdateRange(updatedOutputs);
+            dbContext.Update(updatedOutput);
+        });
     }
 }
