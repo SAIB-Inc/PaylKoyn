@@ -23,9 +23,14 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0
 # Set working directory
 WORKDIR /app
 
-# Install sudo for data directory permissions
+# Install sudo and ImageSharp dependencies
 USER root
-RUN apt-get update && apt-get install -y sudo && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+    sudo \
+    libfontconfig1 \
+    libgdiplus \
+    libc6-dev \
+    && rm -rf /var/lib/apt/lists/*
 RUN echo 'app ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # Copy published application
