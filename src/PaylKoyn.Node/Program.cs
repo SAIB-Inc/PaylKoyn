@@ -5,6 +5,7 @@ using FastEndpoints;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Paylkoyn.Node.Workers;
+using PaylKoyn.Data.Extensions;
 using PaylKoyn.Data.Services;
 using PaylKoyn.Node.Data;
 using PaylKoyn.Node.Services;
@@ -23,8 +24,7 @@ builder.Services.AddHostedService<PaymentWorker>();
 
 builder.Services.AddOpenApi();
 builder.Services.AddFastEndpoints(o => o.IncludeAbstractValidators = true);
-builder.Services.AddSingleton<ICardanoDataProvider>(provider =>
-    new Blockfrost(builder.Configuration.GetValue("BlockfrostApiKey", "previewBVVptlCv4DAR04h3XADZnrUdNTiJyHaJ")));
+builder.Services.AddCardanoProvider(builder.Configuration);
 
 builder.Services.AddDbContextFactory<WalletDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));

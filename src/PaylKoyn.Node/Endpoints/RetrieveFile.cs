@@ -11,7 +11,7 @@ public class RetrieveFileRequest
 }
 
 
-public class RetrieveFile(ICardanoDataProvider blockfrost, FileCacheService cacheService) : Endpoint<RetrieveFileRequest>
+public class RetrieveFile(ICardanoDataProvider provider, FileCacheService cacheService) : Endpoint<RetrieveFileRequest>
 {
     public override void Configure()
     {
@@ -92,7 +92,7 @@ public class RetrieveFile(ICardanoDataProvider blockfrost, FileCacheService cach
             if (processedTransactions.Count > 1000)
                 break;
 
-            Chrysalis.Cbor.Types.Cardano.Core.Metadata? metadata = await blockfrost.GetTransactionMetadataAsync(currentTxHash);
+            Chrysalis.Cbor.Types.Cardano.Core.Metadata? metadata = await provider.GetTransactionMetadataAsync(currentTxHash);
             if (metadata?.Value == null)
                 break;
 

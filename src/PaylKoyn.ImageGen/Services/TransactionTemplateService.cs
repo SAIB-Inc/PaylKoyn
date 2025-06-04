@@ -32,10 +32,8 @@ public record MintNftParams(
     };
 };
 
-public class TransactionTemplateService(IConfiguration configuration)
+public class TransactionTemplateService(IConfiguration configuration, ICardanoDataProvider provider)
 {
-    private readonly Blockfrost _provider = new(configuration.GetValue<string>("Blockfrost:ProjectId", "previewBVVptlCv4DAR04h3XADZnrUdNTiJyHaJ"));
-    private readonly ulong _invalidHereAfter = configuration.GetValue<ulong>("Minting:InvalidAfter", 0);
     private readonly NetworkType _networkType = configuration.GetValue<int>("CardanoNodeConnection:NetworkMagic", 2) switch
     {
         764824073 => NetworkType.Mainnet,
@@ -45,7 +43,7 @@ public class TransactionTemplateService(IConfiguration configuration)
 
     public TransactionTemplate<MintNftParams> MintNftTemplate()
     {
-        TransactionTemplateBuilder<MintNftParams> builder = TransactionTemplateBuilder<MintNftParams>.Create(_provider);
+        TransactionTemplateBuilder<MintNftParams> builder = TransactionTemplateBuilder<MintNftParams>.Create(provider);
 
         builder.AddOutput((options, parameters) =>
             {

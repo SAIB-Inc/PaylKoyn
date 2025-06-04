@@ -13,7 +13,7 @@ public class WalletService(
 )
 {
     private readonly string _seed = configuration.GetValue("Seed", string.Empty);
-    private readonly NetworkType _networkType = configuration.GetValue("NetworkMagic", 2) switch
+    private readonly NetworkType _networkType = configuration.GetValue("CardanoNodeConnection:NetworkMagic", 2) switch
     {
         764824073 => NetworkType.Mainnet,
         _ => NetworkType.Testnet
