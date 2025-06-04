@@ -20,9 +20,10 @@ RUN dotnet publish -c Release -o /app/publish
 FROM base AS final
 WORKDIR /app
 
-# Install socat and netcat for TCP to Unix socket bridge
+# Install socat, netcat, and sudo for TCP to Unix socket bridge
 USER root
-RUN apt-get update && apt-get install -y socat netcat-openbsd && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y socat netcat-openbsd sudo && rm -rf /var/lib/apt/lists/*
+RUN echo 'app ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # Copy published application
 COPY --from=publish /app/publish .
@@ -34,6 +35,10 @@ RUN mkdir -p /ipc && chown app:app /ipc
 RUN echo '#!/bin/bash\n\
 \n\
 echo "=== PAYLKOYN.SYNC STARTING ==="\n\
+\n\
+# Ensure /data has proper permissions for mounted volume\n\
+echo "Setting up data directory permissions..."\n\
+sudo chown -R app:app /data 2>/dev/null || true\n\
 \n\
 # Create local Unix socket bridge to cardano-node TCP service\n\
 echo "Setting up cardano-node connection bridge..."\n\
