@@ -23,8 +23,23 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0
 # Set working directory
 WORKDIR /app
 
+# Install sudo for data directory permissions
+USER root
+RUN apt-get update && apt-get install -y sudo && rm -rf /var/lib/apt/lists/*
+RUN echo 'app ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
 # Copy published application
 COPY --from=build /app/publish .
+
+# Create simple entrypoint for data permissions
+RUN echo '#!/bin/bash\n\
+echo "=== PAYLKOYN.NODE STARTING ==="\n\
+sudo chown -R app:app /data 2>/dev/null || true\n\
+echo "Starting PaylKoyn.Node..."\n\
+exec dotnet PaylKoyn.Node.dll "$@"\n\
+' > /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh
 
 # Expose port
 EXPOSE 8080
@@ -33,5 +48,5 @@ EXPOSE 8080
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV ASPNETCORE_URLS=http://+:8080
 
-# Start the application
-ENTRYPOINT ["dotnet", "PaylKoyn.Node.dll"]
+USER app
+ENTRYPOINT ["/entrypoint.sh"]
