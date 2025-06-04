@@ -27,6 +27,8 @@ RUN apt-get update && apt-get install -y socat netcat-openbsd && rm -rf /var/lib
 # Copy published application
 COPY --from=publish /app/publish .
 
+# Create /ipc directory with proper permissions
+RUN mkdir -p /ipc && chown app:app /ipc
 
 # Create wrapper script for cardano-node connection bridge
 RUN echo '#!/bin/bash\n\
@@ -35,7 +37,6 @@ echo "=== PAYLKOYN.SYNC STARTING ==="\n\
 \n\
 # Create local Unix socket bridge to cardano-node TCP service\n\
 echo "Setting up cardano-node connection bridge..."\n\
-mkdir -p /ipc\n\
 \n\
 # Start socat bridge in background (TCP to Unix socket)\n\
 {\n\
