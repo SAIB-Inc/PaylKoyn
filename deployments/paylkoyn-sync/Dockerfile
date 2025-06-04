@@ -43,6 +43,10 @@ sudo chown -R app:app /data 2>/dev/null || true\n\
 # Create local Unix socket bridge to cardano-node TCP service\n\
 echo "Setting up cardano-node connection bridge..."\n\
 \n\
+# Ensure socket directory is clean and accessible\n\
+sudo rm -f /ipc/node.socket 2>/dev/null || true\n\
+sudo chown -R app:app /ipc 2>/dev/null || true\n\
+\n\
 # Start socat bridge in background (TCP to Unix socket)\n\
 {\n\
     echo "Waiting for cardano-node:3333 to be available..."\n\
