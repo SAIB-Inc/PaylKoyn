@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Components;
 using PaylKoyn.Web.Services;
 
-namespace PaylKoyn.Web.Components.Pages.Home;
+namespace PaylKoyn.Web.Components.Pages.Buy;
 
-public partial class Home
+public partial class Buy
 {
+    [Inject]
+    public required IconService IconService { get; set; }
+    
     [Inject]
     public required NavigationManager Navigation { get; set; }
 

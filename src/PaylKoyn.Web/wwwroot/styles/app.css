@@ -9,6 +9,17 @@
 
 @theme {
     --animate-rotate-border: rotateBorder 3s linear infinite;
+    --animate-wiggle: wiggle 1s ease-in-out infinite;
+    
+    @keyframes wiggle {
+        0%,
+        100% {
+        transform: rotate(-3deg);
+        }
+        50% {
+        transform: rotate(3deg);
+        }
+    }
 
     @keyframes rotateBorder {
         to {
@@ -22,6 +33,9 @@ main {
 }
 
 .button-color-gradient {
-    /* background: conic-gradient(from var(--border-angle), #FF3BFF 0deg, #ECBFBF 30deg, transparent 60deg, transparent 200deg, #FF2BF1, #ECBFBF); */
     background: conic-gradient(from var(--border-angle), #FF3BFF, #ECBFBF, transparent, transparent, transparent, transparent, #FF2BF1, #ECBFBF, transparent, transparent, transparent, transparent, #FF2BF1);
-  }
+}
+
+.button-profile-gradient {
+    background: linear-gradient(to right, #FF3BFF, #ECBFBF, #FF2BF1, #ECBFBF);
+}
