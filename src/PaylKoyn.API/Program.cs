@@ -22,11 +22,8 @@ builder.Services.AddDbContextFactory<PaylKoynDbContext>(options =>
 
 WebApplication app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-    app.MapScalarApiReference();
-}
+app.MapOpenApi();
+app.MapScalarApiReference();
 
 app.UseFastEndpoints(c =>
 {
