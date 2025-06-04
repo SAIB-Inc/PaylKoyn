@@ -60,10 +60,11 @@ public class MintingService(
                 ulong totalAmount = utxos.Aggregate(0UL, (sum, utxo) => sum + utxo.Output.Amount().Lovelace());
                 logger.LogInformation("Found {UtxoCount} UTXOs with total amount: {TotalAmount} lovelace for request ID: {Id}", utxos.Count(), totalAmount, id);
 
+                logger.LogInformation("Total amount: {TotalAmount} Required amount: {RequiredAmount} Result: {Result}", totalAmount, amount, totalAmount >= amount);
+
                 if (totalAmount >= amount)
                 {
                     mintRequest = GenerateMetadata(mintRequest);
-                    //mintRequest.AssetName = $""
                     mintRequest.Status = MintStatus.PaymentReceived;
                     mintRequest.UpdatedAt = DateTime.UtcNow;
 
