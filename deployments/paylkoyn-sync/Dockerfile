@@ -35,7 +35,7 @@ echo "=== PAYLKOYN.SYNC STARTING ==="\n\
 \n\
 # Create local Unix socket bridge to cardano-node TCP service\n\
 echo "Setting up cardano-node connection bridge..."\n\
-mkdir -p /tmp\n\
+mkdir -p /ipc\n\
 \n\
 # Start socat bridge in background (TCP to Unix socket)\n\
 {\n\
@@ -48,7 +48,7 @@ mkdir -p /tmp\n\
     echo "cardano-node:3333 available! Starting socket bridge..."\n\
     while true; do\n\
         echo "$(date): Starting socat TCP->Unix bridge..."\n\
-        socat UNIX-LISTEN:/tmp/preview-node.socket,fork,reuseaddr TCP:cardano-node:3333\n\
+        socat UNIX-LISTEN:/ipc/node.socket,fork,reuseaddr TCP:cardano-node:3333\n\
         echo "$(date): Socket bridge died, restarting..."\n\
         sleep 5\n\
     done\n\
