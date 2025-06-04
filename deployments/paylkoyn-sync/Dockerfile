@@ -27,8 +27,6 @@ RUN apt-get update && apt-get install -y socat netcat-openbsd && rm -rf /var/lib
 # Copy published application
 COPY --from=publish /app/publish .
 
-# Copy Railway-specific configuration
-COPY deployments/paylkoyn-sync/appsettings.Railway.json .
 
 # Create wrapper script for cardano-node connection bridge
 RUN echo '#!/bin/bash\n\
