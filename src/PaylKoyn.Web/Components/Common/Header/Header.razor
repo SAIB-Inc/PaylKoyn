@@ -5,18 +5,30 @@
     <div class="container mx-auto flex justify-between items-center w-full !px-2">
         <MudLink 
             Href="/"
-            class="w-40 lg:w-72">
+            class="hidden w-45 sm:block lg:w-72">
             <MudImage Src="/images/payl_logo.svg" Alt="payl logo"/>
         </MudLink>
-        <div>
+        <MudLink 
+            Href="/"
+            class="sm:hidden">
+            <MudImage Src="/images/payl_logo_mobile.svg" Alt="payl logo"/>
+        </MudLink>
+        <div class="flex gap-2 items-center sm:!gap-6 lg:!gap-8">
+            <MudLink href="/buy" class="h-full !hidden !p-0 sm:!block">
+                <div class="h-[35px] w-[245px] !bg-[url(/images/default_nav.svg)] bg-no-repeat bg-[30px] lg:!pt-0 lg:h-[40px] lg:bg-auto hover:!bg-[url(/images/hover_nav.svg)] hover:h-[45.11px] active:!bg-[url(/images/active_nav.svg)]"></div>
+            </MudLink>
+            <MudLink href="/buy" class="block h-full !w-fit !p-0 sm:!hidden">
+                <div class="h-[30px] aspect-square !bg-[url(/images/default_nav_mobile.svg)] bg-no-repeat bg-center active:!bg-[url(/images/active_nav_mobile.svg)]"></div>
+            </MudLink>
+
             @if(@CurrentUrl == "/")
             {
                 <MudButton 
                     Href="/upload"
-                    Class="!text-xl !text-[var(--mud-palette-primary)] !rounded-full !uppercase !p-[2px] !animate-rotate-border button-color-gradient !w-max lg:!w-47 lg:!h-12"
+                    Class="!text-[var(--mud-palette-primary)] !rounded-full !uppercase !p-[2px] !animate-rotate-border button-color-gradient !w-max lg:!w-47 lg:!h-12"
                 >
                     <div class="!bg-[var(--mud-palette-secondary)] !w-full flex items-center justify-center !text-center rounded-full transition-all duration-150 hover:!bg-[var(--mud-palette-secondary-lighten)] active:!bg-[var(--mud-palette-secondary-darken)] px-3 py-2 lg:!h-11">
-                        <MudText>
+                        <MudText Class="!text-sm sm:!text-xl">
                             <span class="!font-semibold">Launch</span>
                             <span class="!font-bold">$PAYL</span>
                         </MudText>
@@ -29,10 +41,10 @@
                 {
                     <MudButton
                         OnClick="OnWalletConnectClicked" 
-                        Class="!text-xl !text-[var(--mud-palette-primary)] !rounded-full !uppercase !p-[2px] !animate-rotate-border button-color-gradient !w-max lg:!w-47 lg:!h-12"
+                        Class="!text-xl !text-[var(--mud-palette-primary)] !rounded-full !uppercase !p-[2px] !animate-rotate-border button-color-gradient !w-full lg:!w-47 lg:!h-12"
                     >
                         <div class="!bg-[var(--mud-palette-secondary)] !w-full flex items-center justify-center !text-center rounded-full transition-all duration-150 hover:!bg-[var(--mud-palette-secondary-lighten)] active:!bg-[var(--mud-palette-secondary-darken)] px-3 py-2 lg:!h-11">
-                            <MudText>
+                            <MudText Class="!text-sm sm:!text-xl">
                                 <span class="!font-semibold">Connect Wallet</span>
                             </MudText>
                         </div>
