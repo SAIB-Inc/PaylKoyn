@@ -19,7 +19,7 @@ namespace PaylKoyn.Data.Services;
 
 public class TransactionService()
 {
-    public static TransactionTemplate<TransferParams> Transfer(ICardanoDataProvider provider)
+    public TransactionTemplate<TransferParams> Transfer(ICardanoDataProvider provider)
     {
         TransactionTemplate<TransferParams> transferTemplate = TransactionTemplateBuilder<TransferParams>.Create(provider)
             .AddOutput((options, parameters) =>
@@ -59,12 +59,12 @@ public class TransactionService()
     public ulong CalculateFee(
         int fileSize,
         ulong revenueFee,
-        ulong maxTxSize
+        ulong maxTxSize = 16384
     )
     {
         decimal splitCount = Math.Ceiling((decimal)fileSize / maxTxSize);
 
-        return (ulong)(splitCount * 900000 + revenueFee);
+        return (ulong)(splitCount * 1000000 + revenueFee);
     }
 
     private static Transaction UploadFileTxBuilder(

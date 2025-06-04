@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using PaylKoyn.Data.Services;
 using PaylKoyn.Node.Services;
 using Chrysalis.Wallet.Models.Keys;
+using PaylKoyn.Data.Responses;
 namespace PaylKoyn.Node.Endpoints;
 
 public class UploadFileRequest
@@ -30,15 +31,15 @@ public class ReceiveUpload(FileService fileService, WalletService walletService)
     public override async Task HandleAsync(UploadFileRequest req, CancellationToken ct)
     {
         Console.WriteLine($"Received file upload: Id={req.Id}, Name={req.Name}, ContentType={req.ContentType}, FileSize={req.File.Length} bytes");
-        
+
         // Convert IFormFile to byte array
         byte[] fileContent;
-        using (var memoryStream = new MemoryStream())
+        using (MemoryStream memoryStream = new MemoryStream())
         {
             await req.File.CopyToAsync(memoryStream, ct);
             fileContent = memoryStream.ToArray();
         }
-        
+
         // Get private key for the wallet address (req.Id is the wallet address)
         PrivateKey? privateKey = await walletService.GetPrivateKeyByAddressAsync(req.Id);
         if (privateKey == null)
@@ -46,11 +47,15 @@ public class ReceiveUpload(FileService fileService, WalletService walletService)
             await SendAsync(new { error = "Wallet not found for address: " + req.Id }, 404, cancellation: ct);
             return;
         }
-        
+
         try
         {
-            await fileService.UploadAsync(req.Id, fileContent, req.ContentType, req.Name, privateKey);
-            await SendOkAsync($"File uploaded successfully to blockchain. Size: {req.File.Length} bytes", cancellation: ct);
+            string adaFsId = await fileService.UploadAsync(req.Id, fileContent, req.ContentType, req.Name, privateKey);
+            await SendOkAsync(new UploadFileResponse(
+                Message: "File will be uploaded soon.",
+                AdaFsId: adaFsId,
+                FileSize: fileContent.Length / 1024.0m / 1024.0m
+            ), cancellation: ct);
         }
         catch (Exception ex)
         {

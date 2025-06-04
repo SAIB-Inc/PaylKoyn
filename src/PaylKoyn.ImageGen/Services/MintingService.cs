@@ -1,0 +1,401 @@
+using System.Diagnostics;
+using System.Text;
+using System.Text.Json;
+using Chrysalis.Cbor.Extensions.Cardano.Core.Common;
+using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
+using Chrysalis.Cbor.Serialization;
+using Chrysalis.Cbor.Types.Cardano.Core;
+using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
+using Chrysalis.Network.Cbor.LocalStateQuery;
+using Chrysalis.Tx.Extensions;
+using Chrysalis.Tx.Models;
+using Chrysalis.Tx.Models.Cbor;
+using Chrysalis.Wallet.Models.Keys;
+using Microsoft.EntityFrameworkCore;
+using Paylkoyn.ImageGen.Services;
+using PaylKoyn.Data.Models.Template;
+using PaylKoyn.Data.Responses;
+using PaylKoyn.Data.Services;
+using PaylKoyn.ImageGen.Data;
+
+namespace PaylKoyn.ImageGen.Services;
+
+public class MintingService(
+    IConfiguration configuration,
+    IDbContextFactory<MintDbContext> dbContextFactory,
+    ICardanoDataProvider cardanoDataProvider,
+    NftRandomizerService nftRandomizerService,
+    WalletService walletService,
+    TransactionService transactionService,
+    TransactionTemplateService transactionTemplateService,
+    IHttpClientFactory httpClientFactory,
+    ILogger<MintingService> logger
+)
+{
+    private readonly HttpClient _nodeClient = httpClientFactory.CreateClient("PaylKoynNodeClient");
+    private readonly TimeSpan _expirationTime = TimeSpan.FromMinutes(configuration.GetValue<int>("Minting:ExpirationMinutes", 30));
+    private readonly TimeSpan _getUtxosInterval = TimeSpan.FromSeconds(configuration.GetValue<int>("Minting:GetUtxosIntervalSeconds", 10));
+    private readonly ulong _revenueFee = configuration.GetValue<ulong>("Minting:UploadRevenueFee", 2_000_000UL);
+    private readonly string _nftBaseName = configuration.GetValue("NftBaseName", "Payl Koyn NFT");
+    private readonly string _mintingSeed = configuration.GetValue<string>("Seed")
+        ?? throw new ArgumentNullException("Minting seed is not configured");
+    private readonly ulong invalidHereafter = configuration.GetValue<ulong?>("Minting:InvalidHereafter")
+        ?? throw new ArgumentNullException("Invalid hereafter is not configured");
+
+    public async Task<MintRequest> WaitForPaymentAsync(string id, ulong amount)
+    {
+        using MintDbContext dbContext = dbContextFactory.CreateDbContext();
+        MintRequest? mintRequest = await dbContext.MintRequests.FirstOrDefaultAsync(m => m.Id == id)
+            ?? throw new ArgumentException($"Mint request with ID {id} not found.");
+
+        if (mintRequest.Status != MintStatus.Pending)
+            throw new InvalidOperationException($"Mint request with ID {id} is not in pending status. Current status: {mintRequest.Status}");
+
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        while (stopwatch.Elapsed < _expirationTime)
+        {
+            (bool isSuccess, IEnumerable<ResolvedInput> utxos) = await TryGetUtxosAsync(id);
+            if (isSuccess && utxos.Any())
+            {
+                ulong totalAmount = utxos.Aggregate(0UL, (sum, utxo) => sum + utxo.Output.Amount().Lovelace());
+                logger.LogInformation("Found {UtxoCount} UTXOs with total amount: {TotalAmount} lovelace for request ID: {Id}", utxos.Count(), totalAmount, id);
+
+                if (totalAmount >= amount)
+                {
+                    mintRequest = GenerateMetadata(mintRequest);
+                    //mintRequest.AssetName = $""
+                    mintRequest.Status = MintStatus.PaymentReceived;
+                    mintRequest.UpdatedAt = DateTime.UtcNow;
+
+                    dbContext.MintRequests.Update(mintRequest);
+                    await dbContext.SaveChangesAsync();
+
+                    logger.LogInformation("Payment received for request ID: {Id}. Total amount: {TotalAmount} lovelace", id, totalAmount);
+                    return mintRequest;
+                }
+                else
+                {
+                    logger.LogWarning("Insufficient payment for request ID: {Id}. Required: {RequiredAmount} lovelace, but received: {ReceivedAmount} lovelace", id, amount, totalAmount);
+                }
+            }
+
+            logger.LogInformation("No UTXOs found for address: {Address}. Retrying in {Interval} seconds...", id, _getUtxosInterval.TotalSeconds);
+            await Task.Delay(_getUtxosInterval);
+        }
+
+        logger.LogWarning("Payment for request ID: {Id} not received within the expiration time of {ExpirationTime} minutes.", id, _expirationTime.TotalMinutes);
+        mintRequest.Status = MintStatus.Failed;
+        mintRequest.UpdatedAt = DateTime.UtcNow;
+        dbContext.MintRequests.Update(mintRequest);
+        await dbContext.SaveChangesAsync();
+
+        return mintRequest;
+    }
+
+    public MintRequest GenerateMetadata(MintRequest mintRequest)
+    {
+        IEnumerable<NftTrait> randomTraits = nftRandomizerService.GenerateRandomTraits();
+        byte[] image = nftRandomizerService.GenerateNftImage(randomTraits);
+
+        mintRequest.NftMetadata = JsonSerializer.Serialize(randomTraits);
+        mintRequest.Image = image;
+
+        logger.LogInformation("Metadata generated for request ID: {Id}", mintRequest.Id);
+        return mintRequest;
+    }
+
+    public async Task<MintRequest> RequestImageUploadAsync(string id)
+    {
+        using MintDbContext dbContext = dbContextFactory.CreateDbContext();
+        MintRequest? mintRequest = await dbContext.MintRequests.FirstOrDefaultAsync(m => m.Id == id)
+            ?? throw new ArgumentException($"Mint request with ID {id} not found.");
+        if (mintRequest.Status != MintStatus.PaymentReceived)
+            throw new InvalidOperationException($"Mint request with ID {id} is not in metadata generated status. Current status: {mintRequest.Status}");
+
+        HttpResponseMessage response = await _nodeClient.PostAsync("upload/request", null);
+        UploadRequestResponse? uploadResponse = await response.Content.ReadFromJsonAsync<UploadRequestResponse>();
+
+        ProtocolParams protocolParams = await cardanoDataProvider.GetParametersAsync();
+        ulong uploadFee = transactionService.CalculateFee(mintRequest.Image!.Length, _revenueFee, (ulong)protocolParams.MaxTransactionSize!);
+
+        PrivateKey? privateKey = await walletService.GetPrivateKeyByAddressAsync(mintRequest.Id);
+
+        TransactionTemplate<TransferParams> transferTemplate = transactionService.Transfer(cardanoDataProvider);
+        TransferParams transferParams = new(
+            mintRequest.Id,
+            uploadResponse!.Id,
+            uploadFee
+        );
+        Transaction tx = await transferTemplate(transferParams);
+        Transaction signedTx = tx.Sign(privateKey!);
+
+        try
+        {
+            string txHash = await cardanoDataProvider.SubmitTransactionAsync(signedTx); ;
+            logger.LogInformation("Transaction submitted successfully for request ID: {Id}. TxHash: {TxHash}", id, txHash);
+
+            mintRequest.Status = MintStatus.UploadPaymentSent;
+            mintRequest.UploadPaymentAddress = uploadResponse?.Id;
+            mintRequest.UploadPaymentAmount = uploadFee;
+            mintRequest.UpdatedAt = DateTime.UtcNow;
+
+            logger.LogInformation("Image upload fee payment initiated for request ID: {Id}", id);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to submit transaction for request ID: {Id}", id);
+            mintRequest.UpdatedAt = DateTime.UtcNow;
+        }
+
+        dbContext.MintRequests.Update(mintRequest);
+        await dbContext.SaveChangesAsync();
+        return mintRequest;
+    }
+
+    public async Task<MintRequest> UploadImageAsync(string id)
+    {
+        using MintDbContext dbContext = dbContextFactory.CreateDbContext();
+        MintRequest? mintRequest = await dbContext.MintRequests.FirstOrDefaultAsync(m => m.Id == id)
+            ?? throw new ArgumentException($"Mint request with ID {id} not found.");
+        if (mintRequest.Status != MintStatus.UploadPaymentSent)
+            throw new InvalidOperationException($"Mint request with ID {id} is not in upload payment sent status. Current status: {mintRequest.Status}");
+
+        // Upload the image to the node
+        try
+        {
+            string fileName = $"{_nftBaseName.ToLowerInvariant()}-{mintRequest.NftNumber}.png";
+            using MultipartFormDataContent formData = new()
+            {
+                { new StringContent(mintRequest.UploadPaymentAddress!), "id" },
+                { new StringContent(fileName), "name" },
+                { new StringContent("image/png"), "contentType" },
+                { new ByteArrayContent(mintRequest.Image!), "file", fileName }
+            };
+
+            // Exponential backoff retry logic
+            UploadFileResponse? uploadResponse = await UploadWithRetryAsync(formData);
+
+            mintRequest.AdaFsId = uploadResponse?.AdaFsId;
+            mintRequest.UpdatedAt = DateTime.UtcNow;
+            mintRequest.Status = MintStatus.ImageUploaded;
+            logger.LogInformation("Image uploaded successfully for request ID: {Id}", id);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to upload image for request ID: {Id}", id);
+            mintRequest.UpdatedAt = DateTime.UtcNow;
+        }
+
+        dbContext.MintRequests.Update(mintRequest);
+        await dbContext.SaveChangesAsync();
+        return mintRequest;
+    }
+
+    private async Task<UploadFileResponse?> UploadWithRetryAsync(MultipartFormDataContent formData)
+    {
+        const int maxRetries = 5;
+        const int baseDelayMs = 1000;
+
+        for (int attempt = 0; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                HttpResponseMessage response = await _nodeClient.PostAsync("upload/receive", formData);
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadFromJsonAsync<UploadFileResponse>();
+            }
+            catch (HttpRequestException ex) when (attempt < maxRetries)
+            {
+                int delayMs = baseDelayMs * (int)Math.Pow(2, attempt);
+
+                logger.LogWarning("Upload attempt {Attempt} failed, retrying in {DelayMs}ms. Error: {Error}",
+                    attempt + 1, delayMs, ex.Message);
+
+                await Task.Delay(delayMs);
+            }
+        }
+
+        // If we get here, all retries failed
+        throw new InvalidOperationException($"Failed to upload after {maxRetries + 1} attempts");
+    }
+
+    public async Task<MintRequest> MintNftAsync(
+        string id,
+        string policyId,
+        string assetName,
+        string asciiAssetName,
+        string rewardAddress
+    )
+    {
+        using MintDbContext dbContext = dbContextFactory.CreateDbContext();
+        MintRequest? mintRequest = await dbContext.MintRequests.FirstOrDefaultAsync(m => m.Id == id)
+            ?? throw new ArgumentException($"Mint request with ID {id} not found.");
+        if (mintRequest.Status != MintStatus.ImageUploaded)
+            throw new InvalidOperationException($"Mint request with ID {id} is not in image uploaded status. Current status: {mintRequest.Status}");
+
+        Metadata cip25Metadata = CreateNftMetadata(
+            policyId,
+            assetName,
+            mintRequest.AdaFsId!,
+            JsonSerializer.Deserialize<List<NftTrait>>(mintRequest.NftMetadata!)!,
+            asciiAssetName
+        );
+
+        TransactionTemplate<MintNftParams> nftTemplate = transactionTemplateService.MintNftTemplate();
+        var mintingAddress = walletService.GetWalletAddress(_mintingSeed, 0);
+
+        MintNftParams mintNftParams = new(
+            mintRequest.Id,
+            mintRequest.UserAddress,
+            rewardAddress,
+            mintingAddress.ToBech32(),
+            invalidHereafter,
+            cip25Metadata,
+            new Dictionary<string, int>
+            {
+                [assetName] = 1
+            }
+        );
+
+        PrivateKey? userPrivateKey = await walletService.GetPrivateKeyByAddressAsync(mintRequest.Id);
+        PrivateKey? mintingPrivateKey = walletService.GetPaymentPrivateKey(_mintingSeed, 0);
+        Transaction tx = await nftTemplate(mintNftParams);
+        Transaction signedByUser = tx.Sign(userPrivateKey!);
+        Transaction signedByMinting = signedByUser.Sign(mintingPrivateKey);
+
+        try
+        {
+            string txHash = await cardanoDataProvider.SubmitTransactionAsync(signedByMinting);
+            mintRequest.AssetName = assetName;
+            mintRequest.PolicyId = policyId;
+            mintRequest.MintTxHash = txHash;
+            mintRequest.Status = MintStatus.Minted;
+            mintRequest.UpdatedAt = DateTime.UtcNow;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to mint NFT for request ID: {Id}", id);
+            mintRequest.UpdatedAt = DateTime.UtcNow;
+        }
+
+        dbContext.MintRequests.Update(mintRequest);
+        await dbContext.SaveChangesAsync();
+        return mintRequest;
+    }
+
+    public Metadata CreateNftMetadata(
+        string policyId,
+        string assetName,
+        string adaFsId,
+        List<NftTrait> traits,
+        string? nftName = null,
+        string? description = null
+    )
+    {
+        TransactionMetadatum adaFsUrl = SplitMetadata($"adafs://{adaFsId}");
+
+        Dictionary<TransactionMetadatum, TransactionMetadatum> assetMetadata = new()
+        {
+            { new MetadataText("name"), new MetadataText(nftName ?? assetName) },
+            { new MetadataText("image"), adaFsUrl},
+            { new MetadataText("mediaType"), new MetadataText("image/png") }
+        };
+
+        if (!string.IsNullOrEmpty(description))
+            assetMetadata.Add(new MetadataText("description"), new MetadataText(description));
+
+        traits.ForEach(trait => assetMetadata.Add(new MetadataText(trait.Category), new MetadataText(trait.TraitName)));
+
+        Dictionary<TransactionMetadatum, TransactionMetadatum> policyMap = new()
+        {
+            { new MetadataText(assetName), new MetadatumMap(assetMetadata) }
+        };
+
+        Dictionary<TransactionMetadatum, TransactionMetadatum> rootStructure = new()
+        {
+            { new MetadataText(policyId), new MetadatumMap(policyMap) }
+        };
+
+        Dictionary<ulong, TransactionMetadatum> labeledMetadata = new()
+        {
+            { 721, new MetadatumMap(rootStructure) }
+        };
+
+        return new Metadata(labeledMetadata);
+    }
+
+    private TransactionMetadatum SplitMetadata(string metadata)
+    {
+        if (string.IsNullOrEmpty(metadata))
+        {
+            return new MetadataText("");
+        }
+
+        byte[] metadataBytes = Encoding.UTF8.GetBytes(metadata);
+
+        // If it fits in one chunk, return single MetadataText
+        if (metadataBytes.Length <= 64)
+        {
+            return new MetadataText(metadata);
+        }
+
+        // Split into multiple chunks
+        List<TransactionMetadatum> chunks = [];
+        int position = 0;
+
+        while (position < metadataBytes.Length)
+        {
+            int chunkSize = Math.Min(64, metadataBytes.Length - position);
+
+            // Extract chunk bytes
+            byte[] chunkBytes = new byte[chunkSize];
+            Array.Copy(metadataBytes, position, chunkBytes, 0, chunkSize);
+
+            // Make sure we don't break UTF-8 characters
+            string chunkText;
+            try
+            {
+                chunkText = Encoding.UTF8.GetString(chunkBytes);
+            }
+            catch (ArgumentException)
+            {
+                // Broken UTF-8, try smaller chunk
+                for (int i = chunkSize - 1; i > 0; i--)
+                {
+                    try
+                    {
+                        chunkText = Encoding.UTF8.GetString(chunkBytes, 0, i);
+                        chunkSize = i;
+                        break;
+                    }
+                    catch (ArgumentException)
+                    {
+                        continue;
+                    }
+                }
+                chunkText = "";
+            }
+
+            if (string.IsNullOrEmpty(chunkText))
+                break;
+
+            chunks.Add(new MetadataText(chunkText));
+            position += chunkSize;
+        }
+
+        return new MetadatumList(chunks);
+    }
+
+    public async Task<(bool success, IEnumerable<ResolvedInput> utxos)> TryGetUtxosAsync(string address)
+    {
+        try
+        {
+            List<ResolvedInput> utxos = await cardanoDataProvider.GetUtxosAsync([address]);
+            return (utxos.Count != 0, utxos);
+        }
+        catch
+        {
+            return (false, Enumerable.Empty<ResolvedInput>());
+        }
+    }
+}

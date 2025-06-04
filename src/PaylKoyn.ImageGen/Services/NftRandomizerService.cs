@@ -9,6 +9,9 @@ public class NftRandomizerService(IConfiguration configuration)
 {
     private static readonly List<string> _allCategories = ["background", "body", "lineart", "clothing", "eyes", "hat"];
     private static readonly List<AttributeGroup> _attributeGroups = [
+        new("Radioactive Undead", [.. _allCategories.Except(["lineart"])]),
+        new("Samurai", [.. _allCategories.Except(["lineart"])]),
+        new("Caesar", [.. _allCategories.Except(["lineart"])]),
         new("Pinky Pie", [.. _allCategories.Except(["lineart"])]),
         new("Pyro", [.. _allCategories.Except(["lineart"])]),
         new("Rocker", [.. _allCategories.Except(["lineart"])]),
@@ -20,7 +23,7 @@ public class NftRandomizerService(IConfiguration configuration)
     private const string BasePath = "./Assets";
     private readonly Dictionary<string, int> _weights = configuration.GetValue<Dictionary<string, int>>("NftWeights") ?? [];
 
-    public byte[] GenerateRandomNFT(IEnumerable<NftTrait> traits, string? outputPath = null)
+    public byte[] GenerateNftImage(IEnumerable<NftTrait> traits, string? outputPath = null)
     {
         List<string> imagePaths = [];
 

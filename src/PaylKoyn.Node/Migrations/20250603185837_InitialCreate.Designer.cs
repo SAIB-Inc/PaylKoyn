@@ -10,7 +10,7 @@ using PaylKoyn.Node.Data;
 namespace PaylKoyn.Node.Migrations
 {
     [DbContext(typeof(WalletDbContext))]
-    [Migration("20250530222829_InitialCreate")]
+    [Migration("20250603185837_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />

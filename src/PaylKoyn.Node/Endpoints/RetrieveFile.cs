@@ -35,10 +35,10 @@ public class RetrieveFile(ICardanoDataProvider blockfrost, FileCacheService cach
         try
         {
             // Check cache first
-            var cachedFile = await cacheService.GetCachedFileAsync(req.TxHash);
+            (byte[] fileBytes, string contentType, string fileName)? cachedFile = await cacheService.GetCachedFileAsync(req.TxHash);
             if (cachedFile.HasValue)
             {
-                var (fileBytes, contentType, fileName) = cachedFile.Value;
+                (byte[] fileBytes, string contentType, string fileName) = cachedFile.Value;
                 HttpContext.Response.Headers.Append("Content-Disposition", $"inline; filename=\"{fileName}\"");
                 HttpContext.Response.ContentType = contentType;
                 await HttpContext.Response.Body.WriteAsync(fileBytes, ct);
@@ -46,17 +46,17 @@ public class RetrieveFile(ICardanoDataProvider blockfrost, FileCacheService cach
             }
 
             // Retrieve from blockchain
-            var (retrievedBytes, retrievedContentType, retrievedFileName) = await RetrieveFileFromChainAsync(req.TxHash, ct);
-            
+            (byte[] retrievedBytes, string retrievedContentType, string retrievedFileName) = await RetrieveFileFromChainAsync(req.TxHash, ct);
+
             if (retrievedBytes.Length == 0)
             {
                 await SendErrorsAsync(404, cancellation: ct);
                 return;
             }
-            
+
             // Cache the file
             await cacheService.CacheFileAsync(req.TxHash, retrievedBytes, retrievedContentType, retrievedFileName);
-            
+
             HttpContext.Response.Headers.Append("Content-Disposition", $"inline; filename=\"{retrievedFileName}\"");
             HttpContext.Response.ContentType = retrievedContentType;
             await HttpContext.Response.Body.WriteAsync(retrievedBytes, ct);
@@ -74,82 +74,82 @@ public class RetrieveFile(ICardanoDataProvider blockfrost, FileCacheService cach
 
     private async Task<(byte[] fileBytes, string contentType, string fileName)> RetrieveFileFromChainAsync(string startTxHash, CancellationToken ct)
     {
-        var allPayloadBytes = new List<byte>();
-        var currentTxHash = startTxHash;
-        var contentType = "application/octet-stream";
-        var fileName = $"file_{startTxHash}";
-        var processedTransactions = new HashSet<string>();
-        
+        List<byte> allPayloadBytes = new List<byte>();
+        string? currentTxHash = startTxHash;
+        string contentType = "application/octet-stream";
+        string fileName = $"file_{startTxHash}";
+        HashSet<string> processedTransactions = new HashSet<string>();
+
         while (!string.IsNullOrEmpty(currentTxHash))
         {
             // Prevent infinite loops
             if (processedTransactions.Contains(currentTxHash))
                 break;
-                
+
             processedTransactions.Add(currentTxHash);
-            
+
             // Safety limit
             if (processedTransactions.Count > 1000)
                 break;
-                
-            var metadata = await blockfrost.GetTransactionMetadataAsync(currentTxHash);
+
+            Chrysalis.Cbor.Types.Cardano.Core.Metadata? metadata = await blockfrost.GetTransactionMetadataAsync(currentTxHash);
             if (metadata?.Value == null)
                 break;
-                
-            var nextHash = ProcessTransactionMetadata(metadata.Value, allPayloadBytes, ref contentType, ref fileName);
+
+            string? nextHash = ProcessTransactionMetadata(metadata.Value, allPayloadBytes, ref contentType, ref fileName);
             currentTxHash = nextHash;
         }
-        
+
         return (allPayloadBytes.ToArray(), contentType, fileName);
     }
-    
+
     private static string? ProcessTransactionMetadata(
         Dictionary<ulong, TransactionMetadatum> metadata,
-        List<byte> payloadBytes, 
-        ref string contentType, 
+        List<byte> payloadBytes,
+        ref string contentType,
         ref string fileName)
     {
         string? nextHash = null;
-        
-        foreach (var (_, metadatum) in metadata)
+
+        foreach ((ulong _, TransactionMetadatum metadatum) in metadata)
         {
             if (metadatum is not MetadatumMap map) continue;
-            
-            foreach (var (key, value) in map.Value)
+
+            foreach ((TransactionMetadatum key, TransactionMetadatum value) in map.Value)
             {
                 if (key is not MetadataText keyText) continue;
-                
+
                 switch (keyText.Value)
                 {
                     case "next" when value is MetadataText nextText:
                         nextHash = nextText.Value.StartsWith("0x") ? nextText.Value[2..] : nextText.Value;
                         break;
-                        
+
                     case "payload" when value is MetadatumList payloadList:
                         ExtractPayloadChunks(payloadList, payloadBytes);
                         break;
-                        
+
                     case "metadata" when value is MetadatumMap nestedMetadata:
                         ExtractFileMetadata(nestedMetadata, ref contentType, ref fileName);
                         break;
                 }
             }
         }
-        
+
         return string.IsNullOrEmpty(nextHash) ? null : nextHash;
     }
-    
+
     private static void ExtractPayloadChunks(MetadatumList payloadList, List<byte> payloadBytes)
     {
-        foreach (var chunk in payloadList.Value)
+        foreach (TransactionMetadatum chunk in payloadList.Value)
         {
             if (chunk is not MetadataText chunkText) continue;
-            
-            var hexData = chunkText.Value.StartsWith("0x") ? chunkText.Value[2..] : chunkText.Value;
-            
+
+            string hexData = chunkText.Value.StartsWith("0x") ? chunkText.Value[2..] : chunkText.Value;
+
             try
             {
-                var chunkBytes = Convert.FromHexString(hexData);
+                byte[] chunkBytes = Convert.FromHexString(hexData);
                 payloadBytes.AddRange(chunkBytes);
             }
             catch
@@ -158,13 +158,13 @@ public class RetrieveFile(ICardanoDataProvider blockfrost, FileCacheService cach
             }
         }
     }
-    
+
     private static void ExtractFileMetadata(MetadatumMap metadataMap, ref string contentType, ref string fileName)
     {
-        foreach (var (key, value) in metadataMap.Value)
+        foreach ((TransactionMetadatum key, TransactionMetadatum value) in metadataMap.Value)
         {
             if (key is not MetadataText keyText || value is not MetadataText valueText) continue;
-            
+
             switch (keyText.Value)
             {
                 case "contentType":

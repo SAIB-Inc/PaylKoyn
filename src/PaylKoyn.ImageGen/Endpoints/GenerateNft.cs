@@ -17,7 +17,7 @@ public class GenerateNft(NftRandomizerService nftRandomizerService) : Endpoint<L
 
     public override async Task HandleAsync(List<NftTrait> req, CancellationToken ct)
     {
-        byte[] result = nftRandomizerService.GenerateRandomNFT(req);
+        byte[] result = nftRandomizerService.GenerateNftImage(req);
         string fileName = $"nft_{DateTime.UtcNow:yyyyMMdd_HHmmss}.png";
 
         using MemoryStream stream = new(result);
