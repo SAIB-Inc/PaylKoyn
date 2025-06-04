@@ -1,16 +1,9 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.ImageGen.Data;
+using PaylKoyn.ImageGen.Data.Responses;
 
 namespace PaylKoyn.ImageGen.Endpoints;
-
-public record MintRequestDetailsResponse(
-    string Id,
-    string Status,
-    string UploadAddress,
-    decimal FileSize,
-    DateTime UpdatedAt
-);
 
 public class MintRequestDetails(IDbContextFactory<MintDbContext> dbContextFactory) : EndpointWithoutRequest
 {
@@ -46,6 +39,8 @@ public class MintRequestDetails(IDbContextFactory<MintDbContext> dbContextFactor
                 mintRequest.Id,
                 mintRequest.Status.ToString(),
                 mintRequest.UploadPaymentAddress ?? string.Empty,
+                mintRequest.AdaFsId,
+                mintRequest.MintTxHash,
                 (mintRequest.Image?.Length ?? 1) / 1024m / 1024m,
                 mintRequest.UpdatedAt
             );
