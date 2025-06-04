@@ -20,8 +20,16 @@ public class MintNft(WalletService walletService) : Endpoint<MintNftRequest>
 
     public override async Task HandleAsync(MintNftRequest req, CancellationToken ct)
     {
-        MintRequest mintRequest = await walletService.GenerateMintRequestAsync(req.UserAddress);
+        if (!ValidateAddress(req.UserAddress))
+        {
+            await SendErrorsAsync(400, ct);
+        }
 
-        await SendAsync(mintRequest.Id, cancellation: ct);
+        MintRequest mintRequest = await walletService.GenerateMintRequestAsync(req.UserAddress);
+        await SendOkAsync(mintRequest.Id, cancellation: ct);
     }
+
+    private static bool ValidateAddress(string address) =>
+        !string.IsNullOrEmpty(address) && (address.StartsWith("addr1") || address.StartsWith("addr_test1"));
+
 }

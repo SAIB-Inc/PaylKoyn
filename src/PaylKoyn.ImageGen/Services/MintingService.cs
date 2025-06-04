@@ -37,6 +37,10 @@ public class MintingService(
     private readonly TimeSpan _getUtxosInterval = TimeSpan.FromSeconds(configuration.GetValue<int>("Minting:GetUtxosIntervalSeconds", 10));
     private readonly ulong _revenueFee = configuration.GetValue<ulong>("Minting:UploadRevenueFee", 2_000_000UL);
     private readonly string _nftBaseName = configuration.GetValue("NftBaseName", "Payl Koyn NFT");
+    private readonly string _mintingSeed = configuration.GetValue<string>("Seed")
+        ?? throw new ArgumentNullException("Minting seed is not configured");
+    private readonly ulong invalidHereafter = configuration.GetValue<ulong?>("Minting:InvalidHereafter")
+        ?? throw new ArgumentNullException("Invalid hereafter is not configured");
 
     public async Task<MintRequest> WaitForPaymentAsync(string id, ulong amount)
     {
@@ -216,10 +220,14 @@ public class MintingService(
         );
 
         TransactionTemplate<MintNftParams> nftTemplate = transactionTemplateService.MintNftTemplate();
+        var mintingAddress = walletService.GetWalletAddress(_mintingSeed, 0);
+
         MintNftParams mintNftParams = new(
             mintRequest.Id,
             mintRequest.UserAddress,
             rewardAddress,
+            mintingAddress.ToBech32(),
+            invalidHereafter,
             cip25Metadata,
             new Dictionary<string, int>
             {
@@ -227,14 +235,15 @@ public class MintingService(
             }
         );
 
-        PrivateKey? privateKey = await walletService.GetPrivateKeyByAddressAsync(mintRequest.Id);
+        PrivateKey? userPrivateKey = await walletService.GetPrivateKeyByAddressAsync(mintRequest.Id);
+        PrivateKey? mintingPrivateKey = walletService.GetPaymentPrivateKey(_mintingSeed, 0);
         Transaction tx = await nftTemplate(mintNftParams);
-        Transaction signedTx = tx.Sign(privateKey!);
+        Transaction signedByUser = tx.Sign(userPrivateKey!);
+        Transaction signedByMinting = signedByUser.Sign(mintingPrivateKey);
 
-        // Submit to a node 
         try
         {
-            string txHash = await cardanoDataProvider.SubmitTransactionAsync(tx);
+            string txHash = await cardanoDataProvider.SubmitTransactionAsync(signedByMinting);
             mintRequest.AssetName = assetName;
             mintRequest.PolicyId = policyId;
             mintRequest.MintTxHash = txHash;

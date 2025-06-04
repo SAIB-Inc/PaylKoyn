@@ -1,24 +1,34 @@
 
 using System.Text;
 using System.Text.RegularExpressions;
+using Chrysalis.Cbor.Types.Cardano.Core.Common;
+using Chrysalis.Wallet.Models.Addresses;
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.ImageGen.Data;
 using PaylKoyn.ImageGen.Services;
+using PaylKoyn.ImageGen.Utils;
+using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;
 
 namespace Paylkoyn.ImageGen.Workers;
 
 public partial class MintWorker(
     IDbContextFactory<MintDbContext> dbContextFactory,
     IConfiguration configuration,
-    MintingService mintingService
+    MintingService mintingService,
+    WalletService walletService
 ) : BackgroundService
 {
     private readonly string _rewardAddress = configuration.GetValue("RewardAddress", "addr_test1qp0wm2cqf3z5qejaeg75g422675ujzfwdxcmqkq83qgj9hmmmsx4jmdrl442mkv2gqh4qecsaws3cw0farcdfh5hehqq5j6wx5");
-    private readonly string _policyId = configuration.GetValue("PolicyId", "b1c0f3d6e8a2f4c5b7e8c9d0e1f2a3b4c5d6e7f8g9h0i1j2k3l4m5n6o7p8q9r");
     private readonly string _nftBaseName = configuration.GetValue("NftBaseName", "Payl Koyn NFT");
+    private readonly string _seed = configuration.GetValue<string>("Seed") ?? throw new ArgumentNullException("Seed is not configured");
+    private readonly ulong _invalidHereAfter = configuration.GetValue<ulong>("Minting:InvalidAfter", 0);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        WalletAddress mintingAddress = walletService.GetWalletAddress(_seed, 0);
+        NativeScript nativeScript = ScriptUtil.GetMintingScript(mintingAddress.ToBech32(), _invalidHereAfter);
+        string policyId = ScriptUtil.GetPolicyId(nativeScript);
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
@@ -37,12 +47,11 @@ public partial class MintWorker(
                     continue;
                 }
 
-
                 Task<MintRequest>[] tasks = [.. pendingMints.Select(request => {
                     string asciiAssetName = $"{_nftBaseName} #{request.NftNumber}";
                     string cleanAsciiAssetName = AlphaNumericRegex().Replace(asciiAssetName, "");
                     string assetName = Convert.ToHexString(Encoding.UTF8.GetBytes(cleanAsciiAssetName));
-                    return mintingService.MintNftAsync(request.Id, _policyId, assetName, asciiAssetName, _rewardAddress);
+                    return mintingService.MintNftAsync(request.Id, policyId, assetName, asciiAssetName, _rewardAddress);
                 })];
 
                 await Task.WhenAll(tasks);

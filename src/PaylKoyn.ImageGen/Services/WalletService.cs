@@ -42,6 +42,22 @@ public class WalletService(
         return address;
     }
 
+
+    public PrivateKey GetPaymentPrivateKey(string seed, int index = 0)
+    {
+        Mnemonic mnemonic = Mnemonic.Restore(seed, English.Words);
+        PrivateKey accountKey = mnemonic
+            .GetRootKey()
+            .Derive(PurposeType.Shelley, DerivationType.HARD)
+            .Derive(CoinType.Ada, DerivationType.HARD)
+            .Derive(0, DerivationType.HARD);
+        PrivateKey paymentPrivateKey = accountKey
+            .Derive(RoleType.ExternalChain)
+            .Derive(index);
+
+        return paymentPrivateKey;
+    }
+
     public WalletAddress GetWalletAddress(int index = 0)
     {
         Mnemonic mnemonic = Mnemonic.Restore(_seed, English.Words);
