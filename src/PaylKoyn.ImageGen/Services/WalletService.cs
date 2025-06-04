@@ -95,7 +95,7 @@ public class WalletService(
         MintRequest request = new(
             addressBech32, index, requesterAddress,
             null, 0, null, null, null, null, null, null, null,
-            MintStatus.Pending, DateTime.UtcNow, DateTime.UtcNow
+            MintStatus.Pending, null, DateTime.UtcNow, DateTime.UtcNow
         );
 
         // Save the wallet to the database

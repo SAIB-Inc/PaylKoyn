@@ -25,25 +25,27 @@ public partial class MintWorker(
             {
                 using MintDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                MintRequest? pendingMint = await dbContext.MintRequests
-                    .OrderBy(p => p.CreatedAt)
-                    .Where(p => p.Status == MintStatus.ImageUploaded)
-                    .FirstOrDefaultAsync(stoppingToken);
+                List<MintRequest> pendingMints = await dbContext.MintRequests
+                        .OrderBy(p => p.UpdatedAt)
+                        .Where(p => p.Status == MintStatus.ImageUploaded)
+                        .Take(3)
+                        .ToListAsync(stoppingToken);
 
-                if (pendingMint is null)
+                if (pendingMints.Count == 0)
                 {
                     await Task.Delay(5000, stoppingToken);
                     continue;
                 }
 
-                int totalMints = await dbContext.MintRequests
-                    .CountAsync(p => p.Status == MintStatus.Minted, stoppingToken);
 
-                string asciiAssetName = $"{_nftBaseName} #{totalMints + 1}";
-                string cleanAsciiAssetName = AlphaNumericRegex().Replace(asciiAssetName, "");
-                string assetName = Convert.ToHexString(Encoding.UTF8.GetBytes(cleanAsciiAssetName));
+                Task<MintRequest>[] tasks = [.. pendingMints.Select(request => {
+                    string asciiAssetName = $"{_nftBaseName} #{request.NftNumber}";
+                    string cleanAsciiAssetName = AlphaNumericRegex().Replace(asciiAssetName, "");
+                    string assetName = Convert.ToHexString(Encoding.UTF8.GetBytes(cleanAsciiAssetName));
+                    return mintingService.MintNftAsync(request.Id, _policyId, assetName, asciiAssetName, _rewardAddress);
+                })];
 
-                await mintingService.MintNftAsync(pendingMint.Id, _policyId, assetName, asciiAssetName, _rewardAddress);
+                await Task.WhenAll(tasks);
             }
             catch (OperationCanceledException)
             {

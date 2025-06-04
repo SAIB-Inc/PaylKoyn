@@ -11,7 +11,6 @@ using Chrysalis.Tx.Extensions;
 using Chrysalis.Tx.Models;
 using Chrysalis.Tx.Models.Cbor;
 using Chrysalis.Wallet.Models.Keys;
-using Chrysalis.Wallet.Utils;
 using Microsoft.EntityFrameworkCore;
 using Paylkoyn.ImageGen.Services;
 using PaylKoyn.Data.Models.Template;
@@ -38,6 +37,7 @@ public class MintingService(
     private readonly TimeSpan _expirationTime = TimeSpan.FromMinutes(configuration.GetValue<int>("Minting:ExpirationMinutes", 30));
     private readonly TimeSpan _getUtxosInterval = TimeSpan.FromSeconds(configuration.GetValue<int>("Minting:GetUtxosIntervalSeconds", 10));
     private readonly ulong _revenueFee = configuration.GetValue<ulong>("Minting:UploadRevenueFee", 2_000_000UL);
+    private readonly string _nftBaseName = configuration.GetValue("NftBaseName", "Payl Koyn NFT");
 
     public async Task<MintRequest> WaitForPaymentAsync(string id, ulong amount)
     {
@@ -60,6 +60,7 @@ public class MintingService(
                 if (totalAmount >= amount)
                 {
                     mintRequest = GenerateMetadata(mintRequest);
+                    //mintRequest.AssetName = $""
                     mintRequest.Status = MintStatus.PaymentReceived;
                     mintRequest.UpdatedAt = DateTime.UtcNow;
 
@@ -117,7 +118,7 @@ public class MintingService(
         PrivateKey? privateKey = await walletService.GetPrivateKeyByAddressAsync(mintRequest.Id);
 
         TransactionTemplate<TransferParams> transferTemplate = transactionService.Transfer(cardanoDataProvider);
-        TransferParams transferParams = new TransferParams(
+        TransferParams transferParams = new(
             mintRequest.Id,
             uploadResponse!.Id,
             uploadFee
@@ -125,7 +126,6 @@ public class MintingService(
         Transaction tx = await transferTemplate(transferParams);
         Transaction signedTx = tx.Sign(privateKey!);
 
-        // Submit the transaction to the node
         try
         {
             string txHash = await SubmitTransactionAsync(CborSerializer.Serialize(signedTx));
@@ -135,8 +135,6 @@ public class MintingService(
             mintRequest.UploadPaymentAddress = uploadResponse?.Id;
             mintRequest.UploadPaymentAmount = uploadFee;
             mintRequest.UpdatedAt = DateTime.UtcNow;
-            dbContext.MintRequests.Update(mintRequest);
-            await dbContext.SaveChangesAsync();
 
             logger.LogInformation("Image upload fee payment initiated for request ID: {Id}", id);
             return mintRequest;
@@ -144,8 +142,12 @@ public class MintingService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to submit transaction for request ID: {Id}", id);
-            throw new InvalidOperationException($"Failed to submit transaction for request ID: {id}", ex);
+            mintRequest.UpdatedAt = DateTime.UtcNow;
         }
+
+        dbContext.MintRequests.Update(mintRequest);
+        await dbContext.SaveChangesAsync();
+        return mintRequest;
     }
 
     public async Task<string> SubmitTransactionAsync(byte[] transaction)
@@ -169,29 +171,38 @@ public class MintingService(
             throw new InvalidOperationException($"Mint request with ID {id} is not in upload payment sent status. Current status: {mintRequest.Status}");
 
         // Upload the image to the node
-        string fileName = $"test.png";
-        using MultipartFormDataContent formData = new()
+        try
         {
-            // Fill in the form fields
-            { new StringContent(mintRequest.UploadPaymentAddress!), "id" },
-            { new StringContent(fileName), "name" },
-            { new StringContent("image/png"), "contentType" },
+            string fileName = $"{_nftBaseName.ToLowerInvariant()}-{mintRequest.NftNumber}.png";
+            using MultipartFormDataContent formData = new()
+            {
+                // Fill in the form fields
+                { new StringContent(mintRequest.UploadPaymentAddress!), "id" },
+                { new StringContent(fileName), "name" },
+                { new StringContent("image/png"), "contentType" },
 
-            // Attach the file
-            { new ByteArrayContent(mintRequest.Image!), "file", fileName }
-        };
+                // Attach the file
+                { new ByteArrayContent(mintRequest.Image!), "file", fileName }
+            };
 
-        // Send it
-        HttpResponseMessage response = await _nodeClient.PostAsync("upload/receive", formData);
-        response.EnsureSuccessStatusCode();
-        UploadFileResponse? uploadResponse = await response.Content.ReadFromJsonAsync<UploadFileResponse>();
+            // Send it
+            HttpResponseMessage response = await _nodeClient.PostAsync("upload/receive", formData);
+            response.EnsureSuccessStatusCode();
+            UploadFileResponse? uploadResponse = await response.Content.ReadFromJsonAsync<UploadFileResponse>();
 
-        mintRequest.AdaFsId = uploadResponse?.AdaFsId;
-        mintRequest.UpdatedAt = DateTime.UtcNow;
-        mintRequest.Status = MintStatus.ImageUploaded;
+            mintRequest.AdaFsId = uploadResponse?.AdaFsId;
+            mintRequest.UpdatedAt = DateTime.UtcNow;
+            mintRequest.Status = MintStatus.ImageUploaded;
+            logger.LogInformation("Image uploaded successfully for request ID: {Id}", id);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to upload image for request ID: {Id}", id);
+            mintRequest.UpdatedAt = DateTime.UtcNow;
+        }
+
         dbContext.MintRequests.Update(mintRequest);
         await dbContext.SaveChangesAsync();
-        logger.LogInformation("Image uploaded successfully for request ID: {Id}", id);
         return mintRequest;
     }
 
@@ -242,16 +253,15 @@ public class MintingService(
             mintRequest.MintTxHash = txHash;
             mintRequest.Status = MintStatus.Minted;
             mintRequest.UpdatedAt = DateTime.UtcNow;
-            dbContext.MintRequests.Update(mintRequest);
-            await dbContext.SaveChangesAsync();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to mint NFT for request ID: {Id}", id);
-            throw new InvalidOperationException($"Failed to mint NFT for request ID: {id}", ex);
+            mintRequest.UpdatedAt = DateTime.UtcNow;
         }
 
-        logger.LogInformation("NFT minted successfully for request ID: {Id}. TxHash: {TxHash}", id, mintRequest.MintTxHash);
+        dbContext.MintRequests.Update(mintRequest);
+        await dbContext.SaveChangesAsync();
         return mintRequest;
     }
 
@@ -266,7 +276,7 @@ public class MintingService(
     {
         TransactionMetadatum adaFsUrl = SplitMetadata($"adafs://{adaFsId}");
         // Build the asset metadata
-        Dictionary<TransactionMetadatum, TransactionMetadatum> assetMetadata = new Dictionary<TransactionMetadatum, TransactionMetadatum>
+        Dictionary<TransactionMetadatum, TransactionMetadatum> assetMetadata = new()
         {
             // Required fields
             { new MetadataText("name"), new MetadataText(nftName ?? assetName) },
@@ -287,19 +297,19 @@ public class MintingService(
         }
 
         // Build the policy map: { assetName: { ...metadata } }
-        Dictionary<TransactionMetadatum, TransactionMetadatum> policyMap = new Dictionary<TransactionMetadatum, TransactionMetadatum>
+        Dictionary<TransactionMetadatum, TransactionMetadatum> policyMap = new()
         {
             { new MetadataText(assetName), new MetadatumMap(assetMetadata) }
         };
 
         // Build the root structure: { version: 1, policyId: { ...policyMap } }
-        Dictionary<TransactionMetadatum, TransactionMetadatum> rootStructure = new Dictionary<TransactionMetadatum, TransactionMetadatum>
+        Dictionary<TransactionMetadatum, TransactionMetadatum> rootStructure = new()
         {
             { new MetadataText(policyId), new MetadatumMap(policyMap) }
         };
 
         // Wrap in label 721 for CIP-25
-        Dictionary<ulong, TransactionMetadatum> labeledMetadata = new Dictionary<ulong, TransactionMetadatum>
+        Dictionary<ulong, TransactionMetadatum> labeledMetadata = new()
         {
             { 721, new MetadatumMap(rootStructure) }
         };

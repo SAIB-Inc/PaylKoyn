@@ -24,6 +24,7 @@ public record MintRequest(
     string? Traits,
     byte[]? Image,
     MintStatus Status,
+    int? NftNumber,
     DateTime CreatedAt,
     DateTime UpdatedAt
 )
@@ -41,6 +42,7 @@ public record MintRequest(
     public string? Traits { get; set; } = Traits;
     public byte[]? Image { get; set; } = Image;
     public MintStatus Status { get; set; } = Status;
+    public int? NftNumber { get; set; } = NftNumber;
     public DateTime CreatedAt { get; init; } = CreatedAt;
     public DateTime UpdatedAt { get; set; } = UpdatedAt;
 }

@@ -22,7 +22,7 @@ public class MintPaymentWorker(
                 using MintDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
                 List<MintRequest> pendingPayments = await dbContext.MintRequests
-                    .OrderBy(p => p.CreatedAt)
+                    .OrderBy(p => p.UpdatedAt)
                     .Where(p => p.Status == MintStatus.Pending)
                     .Take(5)
                     .ToListAsync(stoppingToken);

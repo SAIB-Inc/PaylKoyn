@@ -19,9 +19,9 @@ public class FileUploadPaymentWorker(
                 using MintDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
                 List<MintRequest> pendingUploadPayments = await dbContext.MintRequests
-                    .OrderBy(p => p.CreatedAt)
+                    .OrderBy(p => p.UpdatedAt)
                     .Where(p => p.Status == MintStatus.PaymentReceived)
-                    .Take(5)
+                    .Take(3)
                     .ToListAsync(stoppingToken);
 
                 if (pendingUploadPayments.Count == 0)
