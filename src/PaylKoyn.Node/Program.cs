@@ -4,6 +4,7 @@ using Chrysalis.Tx.Providers;
 using FastEndpoints;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
+using Paylkoyn.Node.Workers;
 using PaylKoyn.Data.Services;
 using PaylKoyn.Node.Data;
 using PaylKoyn.Node.Services;
@@ -16,6 +17,9 @@ builder.Services.Configure<KestrelServerOptions>(options =>
     options.Limits.KeepAliveTimeout = TimeSpan.FromHours(1);
     options.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(10);
 });
+
+builder.Services.AddHostedService<SubmitWorker>();
+builder.Services.AddHostedService<PaymentWorker>();
 
 builder.Services.AddOpenApi();
 builder.Services.AddFastEndpoints(o => o.IncludeAbstractValidators = true);

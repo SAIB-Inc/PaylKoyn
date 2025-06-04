@@ -3,6 +3,15 @@ using System.Text.Json;
 
 namespace PaylKoyn.Data.Models;
 
+public enum UploadStatus
+{
+    Pending,
+    PaymentReceived,
+    QueudForSubmission,
+    Completed,
+    Failed
+}
+
 public record TxStatus(byte[] TxRaw, bool IsSent, bool IsConfirmed)
 {
     public byte[] TxRaw { get; set; } = TxRaw;
@@ -16,6 +25,8 @@ public record Wallet(string Address, int Index, string? AdaFsId = null) // ← R
     public int Index { get; init; } = Index;
     public string? AdaFsId { get; set; } = AdaFsId;
     public string? TransactionsRaw { get; set; } = null;
+    public int FileSize { get; set; } = 0;
+    public UploadStatus Status { get; set; } = UploadStatus.Pending;
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

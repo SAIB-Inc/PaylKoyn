@@ -34,7 +34,7 @@ public class ReceiveUpload(FileService fileService, WalletService walletService)
 
         // Convert IFormFile to byte array
         byte[] fileContent;
-        using (var memoryStream = new MemoryStream())
+        using (MemoryStream memoryStream = new MemoryStream())
         {
             await req.File.CopyToAsync(memoryStream, ct);
             fileContent = memoryStream.ToArray();
@@ -50,11 +50,11 @@ public class ReceiveUpload(FileService fileService, WalletService walletService)
 
         try
         {
-            var adaFsId = await fileService.UploadAsync(req.Id, fileContent, req.ContentType, req.Name, privateKey);
+            string adaFsId = await fileService.UploadAsync(req.Id, fileContent, req.ContentType, req.Name, privateKey);
             await SendOkAsync(new UploadFileResponse(
-                Message: "File uploaded successfully",
+                Message: "File will be uploaded soon.",
                 AdaFsId: adaFsId,
-                FileSize: fileContent.Length
+                FileSize: fileContent.Length / 1024.0m / 1024.0m
             ), cancellation: ct);
         }
         catch (Exception ex)

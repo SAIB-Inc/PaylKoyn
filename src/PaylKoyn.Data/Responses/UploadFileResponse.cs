@@ -1,3 +1,3 @@
 namespace PaylKoyn.Data.Responses;
 
-public record UploadFileResponse(string Message, string AdaFsId, long FileSize);
+public record UploadFileResponse(string Message, string AdaFsId, decimal FileSize);

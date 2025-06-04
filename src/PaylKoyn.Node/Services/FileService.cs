@@ -4,6 +4,8 @@ using Chrysalis.Cbor.Extensions.Cardano.Core.Common;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
 using Chrysalis.Cbor.Serialization;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
+using Chrysalis.Network.Cbor.LocalStateQuery;
+using Chrysalis.Tx.Extensions;
 using Chrysalis.Tx.Models;
 using Chrysalis.Tx.Models.Cbor;
 using Chrysalis.Wallet.Models.Keys;
@@ -18,7 +20,6 @@ public class FileService(
     IConfiguration configuration,
     TransactionService transactionService,
     ICardanoDataProvider cardanoDataProvider,
-    WalletService walletService,
     IDbContextFactory<WalletDbContext> dbContextFactory,
     ILogger<FileService> logger
 )
@@ -41,27 +42,45 @@ public class FileService(
         if (string.IsNullOrWhiteSpace(address))
             throw new ArgumentException("Address cannot be null or empty.", nameof(address));
 
-        Wallet? wallet = await walletService.GetWalletAsync(address);
+        using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync();
+        Wallet? wallet = await dbContext.Wallets
+            .Where(w => w.Address == address)
+            .FirstOrDefaultAsync();
+
         if (wallet == null)
         {
             logger.LogError("Wallet not found for address: {Address}", address);
             throw new InvalidOperationException($"Wallet not found for address: {address}");
         }
 
+        ProtocolParams protocolParams = await cardanoDataProvider.GetParametersAsync();
+        ulong requiredFee = transactionService.CalculateFee(file.Length, _revenueFee, protocolParams.MaxTransactionSize ?? 16384);
+        decimal requiredFeeAda = requiredFee / 1_000_000m;
+        logger.LogInformation("Calculated required fee: {RequiredFee} lovelace for file size: {FileSize} bytes", requiredFee, file.Length);
+
+        if (wallet.Status != UploadStatus.PaymentReceived)
+        {
+            logger.LogError("Wallet status is not PaymentReceived for address: {Address}", address);
+
+            if (wallet.Status == UploadStatus.Pending)
+            {
+                throw new InvalidOperationException($"Please pay the required fee of {requiredFeeAda} $ADA to the address: {address} before uploading the file.");
+            }
+            else
+            {
+                throw new InvalidOperationException($"File upload is either already in progress or completed for address: {address}. Current status: {wallet.Status}. AdaFsId: {wallet.AdaFsId}");
+            }
+        }
+
         logger.LogInformation("Saving file to temporary path: {TempFilePath}", _tempFilePath);
         string tempFilePath = Path.Combine(_tempFilePath, address);
         await File.WriteAllBytesAsync(tempFilePath, file);
         logger.LogInformation("File saved to: {FilePath}", tempFilePath);
-
         logger.LogInformation("Checking for UTXOs for address: {Address}", address);
+
         IEnumerable<ResolvedInput> utxos = await WaitForUtxosAsync(address);
         ulong amount = utxos.Aggregate(0UL, (sum, utxo) => sum + utxo.Output.Amount().Lovelace());
         logger.LogInformation("Found {UtxoCount} UTXOs with total amount: {TotalAmount} lovelace", utxos.Count(), amount);
-
-        Chrysalis.Network.Cbor.LocalStateQuery.ProtocolParams protocolParams = await cardanoDataProvider.GetParametersAsync();
-        // Calculate required fee for the file upload
-        ulong requiredFee = transactionService.CalculateFee(file.Length, _revenueFee, protocolParams.MaxTransactionSize ?? 16384);
-        logger.LogInformation("Calculated required fee: {RequiredFee} lovelace for file size: {FileSize} bytes", requiredFee, file.Length);
 
         // Validate that payment is sufficient
         if (amount < requiredFee)
@@ -83,15 +102,79 @@ public class FileService(
             _rewardAddress
         );
 
-        string adaFsId = Convert.ToHexString(HashUtil.ToBlake2b256(CborSerializer.Serialize(txs.Last())));
+        txs = [.. txs.Select(tx => tx.Sign(paymentPrivateKey))];
+
+        PostMaryTransaction lastTx = (PostMaryTransaction)txs.Last();
+        string adaFsId = Convert.ToHexString(HashUtil.ToBlake2b256(CborSerializer.Serialize(lastTx.TransactionBody))).ToLowerInvariant();
         wallet.AdaFsId = adaFsId;
         wallet.Transactions = [.. txs.Select(tx => new TxStatus(CborSerializer.Serialize(tx), false, false))];
+        wallet.FileSize = file.Length;
+        wallet.Status = UploadStatus.QueudForSubmission;
         wallet.UpdatedAt = DateTime.UtcNow;
+
+        dbContext.Wallets.Update(wallet);
+        await dbContext.SaveChangesAsync();
 
         logger.LogInformation("Deleting temporary file: {FilePath}", tempFilePath);
         if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
 
         return adaFsId;
+    }
+
+    public async Task<Wallet?> WaitForPaymentAsync(string address)
+    {
+        if (string.IsNullOrWhiteSpace(address))
+            throw new ArgumentException("Address cannot be null or empty.", nameof(address));
+
+        using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync();
+        Wallet? wallet = await dbContext.Wallets
+            .Where(w => w.Address == address)
+            .FirstOrDefaultAsync();
+
+        if (wallet is null)
+        {
+            logger.LogError("Wallet not found for address: {Address}", address);
+            throw new InvalidOperationException($"Wallet not found for address: {address}");
+        }
+
+        try
+        {
+            logger.LogInformation("Checking for UTXOs for address: {Address}", address);
+            IEnumerable<ResolvedInput> utxos = await WaitForUtxosAsync(address);
+            ulong amount = utxos.Aggregate(0UL, (sum, utxo) => sum + utxo.Output.Amount().Lovelace());
+            logger.LogInformation("Found {UtxoCount} UTXOs with total amount: {TotalAmount} lovelace", utxos.Count(), amount);
+
+            ProtocolParams protocolParams = await cardanoDataProvider.GetParametersAsync();
+            // Calculate required fee for the file upload
+            ulong requiredFee = transactionService.CalculateFee(wallet!.FileSize, _revenueFee, protocolParams.MaxTransactionSize ?? 16384);
+
+            // Validate that payment is sufficient
+            if (amount >= requiredFee)
+            {
+                wallet.Status = UploadStatus.PaymentReceived;
+            }
+            else
+            {
+                logger.LogError("Insufficient payment. Required: {RequiredFee} lovelace, but received: {ReceivedAmount} lovelace", requiredFee, amount);
+            }
+        }
+        catch (TimeoutException ex)
+        {
+            logger.LogError(ex, "Timeout while waiting for UTXOs for address: {Address}", address);
+            wallet.Status = UploadStatus.Failed;
+            wallet.TransactionsRaw = null;
+            wallet.Transactions = null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error while waiting for payment for address: {Address}", address);
+        }
+
+        wallet.UpdatedAt = DateTime.UtcNow;
+        dbContext.Wallets.Update(wallet);
+        await dbContext.SaveChangesAsync();
+        logger.LogInformation("Wallet updated with payment status for address: {Address}", address);
+        return wallet;
     }
 
     public async Task<Wallet> SubmitTransactionsAsync(string address)
@@ -105,36 +188,67 @@ public class FileService(
             throw new InvalidOperationException($"Wallet not found for address: {address}");
         }
 
-        foreach (TxStatus txStatus in wallet.Transactions.Where(t => !t.IsSent))
-        {
-            Transaction tx = Transaction.Read(txStatus.TxRaw);
+        List<TxStatus> updatedTransactions = new List<TxStatus>();
+        bool anyChanges = false;
 
+        foreach (TxStatus txStatus in wallet.Transactions)
+        {
+            if (txStatus.IsSent)
+            {
+                // Already sent, keep as-is
+                updatedTransactions.Add(txStatus);
+                continue;
+            }
+
+            Transaction tx = Transaction.Read(txStatus.TxRaw);
             logger.LogInformation("Submitting transaction to the network");
+
             int retriesRemaining = _submissionRetries;
-            while (true)
+            bool wasSubmitted = false;
+
+            while (retriesRemaining > 0)
             {
                 try
                 {
                     string txHash = await cardanoDataProvider.SubmitTransactionAsync(tx);
                     logger.LogInformation("Transaction submitted successfully: {TransactionId}", txHash);
-                    txStatus.IsSent = true;
+
+                    // ✅ Create new record with IsSent = true
+                    TxStatus updatedTxStatus = txStatus with { IsSent = true };
+                    updatedTransactions.Add(updatedTxStatus);
+                    wasSubmitted = true;
+                    anyChanges = true;
                     break;
                 }
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Failed to submit transaction. Retrying...");
                     retriesRemaining--;
-                    if (_submissionRetries <= 0) break;
+                    if (retriesRemaining <= 0) break;
                     await Task.Delay(_getUtxosInterval);
-                    continue;
                 }
+            }
+
+            if (!wasSubmitted)
+            {
+                updatedTransactions.Add(txStatus);
             }
         }
 
-        wallet.UpdatedAt = DateTime.UtcNow;
-        wallet.Transactions = wallet.Transactions;
-        dbContext.Wallets.Update(wallet);
-        await dbContext.SaveChangesAsync();
+        if (anyChanges)
+        {
+            wallet.Transactions = updatedTransactions;
+            wallet.UpdatedAt = DateTime.UtcNow;
+
+            if (wallet.Transactions.All(t => t.IsSent))
+            {
+                wallet.Status = UploadStatus.Completed;
+                logger.LogInformation("All transactions submitted successfully for address: {Address}", address);
+            }
+
+            dbContext.Wallets.Update(wallet);
+            await dbContext.SaveChangesAsync();
+        }
 
         return wallet;
     }
