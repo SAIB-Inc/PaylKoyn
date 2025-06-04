@@ -1,11 +1,12 @@
 using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
-using Chrysalis.Cbor.Serialization;
 using Chrysalis.Cbor.Types.Cardano.Core;
 using Chrysalis.Cbor.Types.Cardano.Core.Common;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using Chrysalis.Tx.Builders;
 using Chrysalis.Tx.Models;
 using Chrysalis.Tx.Providers;
+using Chrysalis.Tx.Utils;
+using Chrysalis.Wallet.Models.Enums;
 using PaylKoyn.ImageGen.Utils;
 using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;
 
@@ -26,13 +27,21 @@ public record MintNftParams(
     {
         { "change", (ChangeAddress, true) },
         { "user", (UserAddress, false) },
-        { "reward", (RewardAddress, false) }
+        { "reward", (RewardAddress, false) },
+        { "minting", (MintingAddress, false) }
     };
 };
 
 public class TransactionTemplateService(IConfiguration configuration)
 {
     private readonly Blockfrost _provider = new(configuration.GetValue<string>("Blockfrost:ProjectId", "previewBVVptlCv4DAR04h3XADZnrUdNTiJyHaJ"));
+    private readonly ulong _invalidHereAfter = configuration.GetValue<ulong>("Minting:InvalidAfter", 0);
+    private readonly NetworkType _networkType = configuration.GetValue<int>("CardanoNodeConnection:NetworkMagic", 2) switch
+    {
+        764824073 => NetworkType.Mainnet,
+        2 => NetworkType.Preview,
+        _ => NetworkType.Preprod
+    };
 
     public TransactionTemplate<MintNftParams> MintNftTemplate()
     {
@@ -81,7 +90,13 @@ public class TransactionTemplateService(IConfiguration configuration)
             return parameters.Metadata;
         });
 
+        SlotNetworkConfig slotNetworkConfig = SlotUtil.GetSlotNetworkConfig(_networkType);
+        long currentSlot = SlotUtil.GetSlotFromUTCTime(slotNetworkConfig, DateTime.UtcNow) - 100;
+        long invalidHereAfterSlot = currentSlot + 1000;
+
         builder.AddRequiredSigner("minting");
+        builder.SetValidFrom((ulong)currentSlot);
+        builder.SetValidTo((ulong)invalidHereAfterSlot);
 
         builder.SetPreBuildHook((txBuilder, _, parameters) =>
         {

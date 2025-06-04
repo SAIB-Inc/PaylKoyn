@@ -131,7 +131,7 @@ public class MintingService(
 
         try
         {
-            string txHash = await cardanoDataProvider.SubmitTransactionAsync(tx); ;
+            string txHash = await cardanoDataProvider.SubmitTransactionAsync(signedTx); ;
             logger.LogInformation("Transaction submitted successfully for request ID: {Id}. TxHash: {TxHash}", id, txHash);
 
             mintRequest.Status = MintStatus.UploadPaymentSent;
@@ -140,7 +140,6 @@ public class MintingService(
             mintRequest.UpdatedAt = DateTime.UtcNow;
 
             logger.LogInformation("Image upload fee payment initiated for request ID: {Id}", id);
-            return mintRequest;
         }
         catch (Exception ex)
         {
@@ -167,19 +166,14 @@ public class MintingService(
             string fileName = $"{_nftBaseName.ToLowerInvariant()}-{mintRequest.NftNumber}.png";
             using MultipartFormDataContent formData = new()
             {
-                // Fill in the form fields
                 { new StringContent(mintRequest.UploadPaymentAddress!), "id" },
                 { new StringContent(fileName), "name" },
                 { new StringContent("image/png"), "contentType" },
-
-                // Attach the file
                 { new ByteArrayContent(mintRequest.Image!), "file", fileName }
             };
 
-            // Send it
-            HttpResponseMessage response = await _nodeClient.PostAsync("upload/receive", formData);
-            response.EnsureSuccessStatusCode();
-            UploadFileResponse? uploadResponse = await response.Content.ReadFromJsonAsync<UploadFileResponse>();
+            // Exponential backoff retry logic
+            UploadFileResponse? uploadResponse = await UploadWithRetryAsync(formData);
 
             mintRequest.AdaFsId = uploadResponse?.AdaFsId;
             mintRequest.UpdatedAt = DateTime.UtcNow;
@@ -195,6 +189,34 @@ public class MintingService(
         dbContext.MintRequests.Update(mintRequest);
         await dbContext.SaveChangesAsync();
         return mintRequest;
+    }
+
+    private async Task<UploadFileResponse?> UploadWithRetryAsync(MultipartFormDataContent formData)
+    {
+        const int maxRetries = 5;
+        const int baseDelayMs = 1000;
+
+        for (int attempt = 0; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                HttpResponseMessage response = await _nodeClient.PostAsync("upload/receive", formData);
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadFromJsonAsync<UploadFileResponse>();
+            }
+            catch (HttpRequestException ex) when (attempt < maxRetries)
+            {
+                int delayMs = baseDelayMs * (int)Math.Pow(2, attempt);
+
+                logger.LogWarning("Upload attempt {Attempt} failed, retrying in {DelayMs}ms. Error: {Error}",
+                    attempt + 1, delayMs, ex.Message);
+
+                await Task.Delay(delayMs);
+            }
+        }
+
+        // If we get here, all retries failed
+        throw new InvalidOperationException($"Failed to upload after {maxRetries + 1} attempts");
     }
 
     public async Task<MintRequest> MintNftAsync(

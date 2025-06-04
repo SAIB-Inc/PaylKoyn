@@ -24,9 +24,11 @@ public class MintNft(WalletService walletService) : Endpoint<MintNftRequest>
         {
             await SendErrorsAsync(400, ct);
         }
-
-        MintRequest mintRequest = await walletService.GenerateMintRequestAsync(req.UserAddress);
-        await SendOkAsync(mintRequest.Id, cancellation: ct);
+        else
+        {
+            MintRequest mintRequest = await walletService.GenerateMintRequestAsync(req.UserAddress);
+            await SendAsync(mintRequest.Id, cancellation: ct);
+        }
     }
 
     private static bool ValidateAddress(string address) =>
