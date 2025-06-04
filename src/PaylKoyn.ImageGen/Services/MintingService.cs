@@ -262,40 +262,29 @@ public class MintingService(
     )
     {
         TransactionMetadatum adaFsUrl = SplitMetadata($"adafs://{adaFsId}");
-        // Build the asset metadata
+
         Dictionary<TransactionMetadatum, TransactionMetadatum> assetMetadata = new()
         {
-            // Required fields
             { new MetadataText("name"), new MetadataText(nftName ?? assetName) },
             { new MetadataText("image"), adaFsUrl},
             { new MetadataText("mediaType"), new MetadataText("image/png") }
         };
 
-        // Add description if provided
         if (!string.IsNullOrEmpty(description))
-        {
             assetMetadata.Add(new MetadataText("description"), new MetadataText(description));
-        }
 
-        // Add traits directly as key-value pairs
-        foreach (NftTrait trait in traits)
-        {
-            assetMetadata.Add(new MetadataText(trait.Category), new MetadataText(trait.TraitName));
-        }
+        traits.ForEach(trait => assetMetadata.Add(new MetadataText(trait.Category), new MetadataText(trait.TraitName)));
 
-        // Build the policy map: { assetName: { ...metadata } }
         Dictionary<TransactionMetadatum, TransactionMetadatum> policyMap = new()
         {
             { new MetadataText(assetName), new MetadatumMap(assetMetadata) }
         };
 
-        // Build the root structure: { version: 1, policyId: { ...policyMap } }
         Dictionary<TransactionMetadatum, TransactionMetadatum> rootStructure = new()
         {
             { new MetadataText(policyId), new MetadatumMap(policyMap) }
         };
 
-        // Wrap in label 721 for CIP-25
         Dictionary<ulong, TransactionMetadatum> labeledMetadata = new()
         {
             { 721, new MetadatumMap(rootStructure) }
