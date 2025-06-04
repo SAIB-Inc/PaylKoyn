@@ -33,7 +33,6 @@ public class MintingService(
 )
 {
     private readonly HttpClient _nodeClient = httpClientFactory.CreateClient("PaylKoynNodeClient");
-    private readonly HttpClient _submitClient = httpClientFactory.CreateClient("TxSubmitClient");
     private readonly TimeSpan _expirationTime = TimeSpan.FromMinutes(configuration.GetValue<int>("Minting:ExpirationMinutes", 30));
     private readonly TimeSpan _getUtxosInterval = TimeSpan.FromSeconds(configuration.GetValue<int>("Minting:GetUtxosIntervalSeconds", 10));
     private readonly ulong _revenueFee = configuration.GetValue<ulong>("Minting:UploadRevenueFee", 2_000_000UL);
@@ -128,7 +127,7 @@ public class MintingService(
 
         try
         {
-            string txHash = await SubmitTransactionAsync(CborSerializer.Serialize(signedTx));
+            string txHash = await cardanoDataProvider.SubmitTransactionAsync(tx); ;
             logger.LogInformation("Transaction submitted successfully for request ID: {Id}. TxHash: {TxHash}", id, txHash);
 
             mintRequest.Status = MintStatus.UploadPaymentSent;
@@ -148,18 +147,6 @@ public class MintingService(
         dbContext.MintRequests.Update(mintRequest);
         await dbContext.SaveChangesAsync();
         return mintRequest;
-    }
-
-    public async Task<string> SubmitTransactionAsync(byte[] transaction)
-    {
-        ByteArrayContent submitPayload = new(transaction);
-        submitPayload.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/cbor");
-        HttpResponseMessage response = await _submitClient.PostAsync("api/submit/tx", submitPayload);
-        response.EnsureSuccessStatusCode();
-
-        string jsonResponse = await response.Content.ReadAsStringAsync();
-        string txHash = JsonSerializer.Deserialize<string>(jsonResponse)!;
-        return txHash;
     }
 
     public async Task<MintRequest> UploadImageAsync(string id)
@@ -247,7 +234,7 @@ public class MintingService(
         // Submit to a node 
         try
         {
-            string txHash = await SubmitTransactionAsync(CborSerializer.Serialize(signedTx));
+            string txHash = await cardanoDataProvider.SubmitTransactionAsync(tx);
             mintRequest.AssetName = assetName;
             mintRequest.PolicyId = policyId;
             mintRequest.MintTxHash = txHash;
