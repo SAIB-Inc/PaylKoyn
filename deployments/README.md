@@ -125,11 +125,139 @@ Both services include monitoring and auto-restart capabilities for robust operat
 - Test direct IP connectivity with `ping`
 - Verify Railway internal networking
 
+### paylkoyn-sync
+**Purpose**: Cardano blockchain synchronization service for PaylKoyn data indexing
+
+**Configuration**:
+- Base image: Published to GHCR via GitHub Actions
+- Database: Railway Postgres with automatic schema creation
+- Cardano connection: TCP bridge to cardano-node:3333 via socat
+
+**Key features**:
+- Automated Docker image publishing to `ghcr.io/saib-inc/paylkoyn/paylkoyn-sync:latest`
+- EF Core migrations for database schema management
+- Argus.Sync framework integration with custom reducers
+- TCP→Unix socket bridge for Cardano node communication
+
+**Exposed services**:
+- Database entities: TransactionsBySlot, OutputsBySlot, ReducerStates
+- Blockchain data synchronization and indexing
+
+## Deployment Architecture
+
+```
+Railway Infrastructure (IPv6)
+│
+├── cardano-node:3001 (P2P networking)
+├── cardano-node:3333 (TCP bridge)
+│   └── socat TCP6-LISTEN:3333 ← /ipc/node.socket
+│
+├── cardano-cli-test (validation)
+│   └── socat UNIX-LISTEN:/tmp/node.socket ← TCP:cardano-node:3333
+│
+├── paylkoyn-sync (blockchain indexing)
+│   ├── socat UNIX-LISTEN:/tmp/preview-node.socket ← TCP:cardano-node:3333
+│   └── Database connection → payl-koyn-db-1.railway.internal
+│
+└── payl-koyn-db-1 (PostgreSQL)
+    └── Schema: TransactionsBySlot, OutputsBySlot, ReducerStates
+```
+
+## Advanced Deployment Steps
+
+### PaylKoyn.Sync Service
+
+1. **Database Setup**:
+   - Ensure `payl-koyn-db-1` PostgreSQL service is running
+   - Schema is managed via EF Core migrations
+
+2. **Docker Image Deployment**:
+   - GitHub Actions automatically builds and publishes to GHCR
+   - Use image: `ghcr.io/saib-inc/paylkoyn/paylkoyn-sync:latest`
+   - Package is public for Railway access
+
+3. **Railway Configuration**:
+   ```
+   # Database Connection (using cross-service variables)
+   ConnectionStrings__CardanoContext=Host=${{payl-koyn-db-1.PGHOST}};Database=${{payl-koyn-db-1.PGDATABASE}};Username=${{payl-koyn-db-1.PGUSER}};Password=${{payl-koyn-db-1.PGPASSWORD}};Port=${{payl-koyn-db-1.PGPORT}}
+   
+   # Cardano Node Configuration
+   CardanoNodeConnection__ConnectionType=UnixSocket
+   CardanoNodeConnection__UnixSocket__Path=/tmp/preview-node.socket
+   CardanoNodeConnection__NetworkMagic=2
+   CardanoNodeConnection__MaxRollbackSlots=1000
+   CardanoNodeConnection__RollbackBuffer=10
+   
+   # Sync Configuration
+   Sync__Dashboard__TuiMode=false
+   Sync__Dashboard__RefreshInterval=100
+   ```
+
+4. **Database Migrations**:
+   ```bash
+   # Local migration to Railway database
+   cd src/PaylKoyn.Sync
+   dotnet ef database update --project ../PaylKoyn.Data --connection "Host=<railway-host>;Port=<port>;Database=railway;Username=postgres;Password=<password>"
+   ```
+
+5. **Verify Deployment**:
+   - Check logs for successful cardano-node:3333 connection
+   - Verify socket bridge creation: "Starting socat TCP→Unix bridge"
+   - Confirm blockchain synchronization starts
+
+## Technical Solutions
+
+### Railway Environment Variables
+Railway uses special syntax for cross-service variable references:
+- `${{service-name.VARIABLE}}` = reference variable from another service
+- `${VARIABLE}` = variable from current service
+
+### Docker Image Publishing
+Automated via GitHub Actions workflow:
+- Triggers on changes to `src/PaylKoyn.Sync/**` or `deployments/paylkoyn-sync/**`
+- Publishes to GitHub Container Registry (GHCR)
+- Tagged with `latest` for main branch deployments
+
+### Database Schema Management
+- EF Core migrations stored in `src/PaylKoyn.Data/Migrations/`
+- Schema includes Argus.Sync base entities plus custom PaylKoyn entities
+- Manual migration execution preferred for production environments
+
+### IPv6 Networking Compatibility
+All socat bridges configured for IPv6 compatibility:
+- cardano-node: `TCP6-LISTEN:3333,bind=[::]`
+- Client services: Standard TCP connections work with IPv6
+
+## Troubleshooting
+
+### PaylKoyn.Sync Issues
+
+**Database connection failed**:
+- Verify Railway Postgres service is running
+- Check cross-service variable syntax: `${{payl-koyn-db-1.PGHOST}}`
+- Ensure service linking is configured
+
+**Migration conflicts**:
+- Run manual migration via EF CLI tools
+- Check `__EFMigrationsHistory` table for applied migrations
+- Use `dotnet ef database update` with direct connection string
+
+**Cardano connection failed**:
+- Verify cardano-node:3333 is accessible
+- Check socat bridge logs in cardano-node service
+- Ensure TCP→Unix socket bridge is operational
+
+**Docker image not found**:
+- Check GitHub Actions workflow completion
+- Verify GHCR package visibility is public
+- Use full image path: `ghcr.io/saib-inc/paylkoyn/paylkoyn-sync:latest`
+
 ## Next Steps
 
-With this infrastructure operational, you can now deploy:
-- PaylKoyn.Sync service for blockchain synchronization
-- PaylKoyn.Node for file storage operations
-- Other Cardano-dependent services
+With this complete infrastructure operational, you can now:
+- Deploy additional PaylKoyn services (API, Web, Node)
+- Scale blockchain indexing with multiple sync instances
+- Implement custom reducers for specific data requirements
+- Monitor blockchain synchronization and data integrity
 
-All services can connect to the Cardano node via `cardano-node:3333` TCP endpoint.
+All services can connect to the Cardano node via `cardano-node:3333` TCP endpoint and share the centralized PostgreSQL database for data persistence.

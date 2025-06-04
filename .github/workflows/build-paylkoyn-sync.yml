@@ -7,12 +7,6 @@ on:
       - 'src/PaylKoyn.Sync/**'
       - 'src/PaylKoyn.Data/**'
       - 'deployments/paylkoyn-sync/**'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'src/PaylKoyn.Sync/**'
-      - 'src/PaylKoyn.Data/**'
-      - 'deployments/paylkoyn-sync/**'
   workflow_dispatch:
 
 env:
