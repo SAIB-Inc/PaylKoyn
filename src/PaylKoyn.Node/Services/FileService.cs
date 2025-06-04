@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Argus.Sync.Utils;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Common;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
 using Chrysalis.Cbor.Serialization;
@@ -7,16 +8,19 @@ using Chrysalis.Tx.Extensions;
 using Chrysalis.Tx.Models;
 using Chrysalis.Tx.Models.Cbor;
 using Chrysalis.Wallet.Models.Keys;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models;
+using PaylKoyn.Data.Services;
+using PaylKoyn.Node.Data;
 
-namespace PaylKoyn.Data.Services;
+namespace PaylKoyn.Node.Services;
 
 public class FileService(
     IConfiguration configuration,
     TransactionService transactionService,
     ICardanoDataProvider cardanoDataProvider,
+    WalletService walletService,
+    IDbContextFactory<WalletDbContext> dbContextFactory,
     ILogger<FileService> logger
 )
 {
@@ -37,6 +41,14 @@ public class FileService(
     {
         if (string.IsNullOrWhiteSpace(address))
             throw new ArgumentException("Address cannot be null or empty.", nameof(address));
+
+        Wallet? wallet = await walletService.GetWalletAsync(address);
+        if (wallet == null)
+        {
+            logger.LogError("Wallet not found for address: {Address}", address);
+            throw new InvalidOperationException($"Wallet not found for address: {address}");
+        }
+
         logger.LogInformation("Saving file to temporary path: {TempFilePath}", _tempFilePath);
         string tempFilePath = Path.Combine(_tempFilePath, address);
         await File.WriteAllBytesAsync(tempFilePath, file);
@@ -72,15 +84,31 @@ public class FileService(
             _rewardAddress
         );
 
-        ulong totalFee = 0;
-        string adaFsTxHash = string.Empty;
-        foreach (Transaction tx in txs)
-        {
-            logger.LogInformation("Signing transaction");
-            Transaction signedTx = tx.Sign(paymentPrivateKey);
-            logger.LogInformation("Transaction signed successfully");
+        string adaFsId = Convert.ToHexString(HashUtil.ToBlake2b256(CborSerializer.Serialize(txs.Last())));
+        wallet.AdaFsId = adaFsId;
+        wallet.Transactions = [.. txs.Select(tx => new TxStatus(CborSerializer.Serialize(tx), false, false))];
+        wallet.UpdatedAt = DateTime.UtcNow;
 
-            totalFee += ((PostMaryTransaction)signedTx).TransactionBody.Fee();
+        logger.LogInformation("Deleting temporary file: {FilePath}", tempFilePath);
+        if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
+
+        return adaFsId;
+    }
+
+    public async Task<Wallet> SubmitTransactionsAsync(string address)
+    {
+        using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync();
+        Wallet? wallet = await dbContext.Wallets.Where(w => w.Address == address).FirstOrDefaultAsync();
+
+        if (wallet == null || wallet.Transactions is null || wallet.Transactions.Count == 0)
+        {
+            logger.LogError("Wallet not found or no transactions to submit for address: {Address}", address);
+            throw new InvalidOperationException($"Wallet not found for address: {address}");
+        }
+
+        foreach (TxStatus txStatus in wallet.Transactions.Where(t => !t.IsSent))
+        {
+            Transaction tx = Transaction.Read(txStatus.TxRaw);
 
             logger.LogInformation("Submitting transaction to the network");
             int retriesRemaining = _submissionRetries;
@@ -88,31 +116,28 @@ public class FileService(
             {
                 try
                 {
-                    string txHash = await cardanoDataProvider.SubmitTransactionAsync(signedTx);
-                    adaFsTxHash = txHash;
+                    string txHash = await cardanoDataProvider.SubmitTransactionAsync(tx);
                     logger.LogInformation("Transaction submitted successfully: {TransactionId}", txHash);
+                    txStatus.IsSent = true;
                     break;
                 }
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Failed to submit transaction. Retrying...");
-                    logger.LogInformation(Convert.ToHexString(CborSerializer.Serialize(signedTx)));
                     retriesRemaining--;
-                    if (_submissionRetries <= 0) throw;
-                    await Task.Delay(_getUtxosInterval); // Wait before retrying
+                    if (_submissionRetries <= 0) break;
+                    await Task.Delay(_getUtxosInterval);
                     continue;
                 }
             }
         }
 
-        logger.LogInformation("Total transaction fee: {TotalFee} ADA", totalFee / 1_000_000m);
-        logger.LogInformation("Total transactions created: {TransactionCount}", txs.Count);
+        wallet.UpdatedAt = DateTime.UtcNow;
+        wallet.Transactions = wallet.Transactions;
+        dbContext.Wallets.Update(wallet);
+        await dbContext.SaveChangesAsync();
 
-        // DELETE the temporary file after upload
-        logger.LogInformation("Deleting temporary file: {FilePath}", tempFilePath);
-        if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
-
-        return adaFsTxHash;
+        return wallet;
     }
 
     private async Task<IEnumerable<ResolvedInput>> WaitForUtxosAsync(string address)
@@ -134,7 +159,7 @@ public class FileService(
     {
         try
         {
-            var utxos = await cardanoDataProvider.GetUtxosAsync([address]);
+            List<ResolvedInput> utxos = await cardanoDataProvider.GetUtxosAsync([address]);
             return (utxos.Count != 0, utxos);
         }
         catch
