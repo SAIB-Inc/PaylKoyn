@@ -47,9 +47,9 @@ public class SubmitTransaction(IDbContextFactory<PaylKoynDbContext> dbContextFac
         PostMaryTransaction tx = CborSerializer.Deserialize<PostMaryTransaction>(req.TransactionCbor);
         string txHash = Convert.ToHexStringLower(HashUtil.Blake2b256(CborSerializer.Serialize(tx.TransactionBody)));
 
-        long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-        TransactionSubmissions submission = new(txHash, req.TransactionCbor, TransactionStatus.Pending, now, null);
+        TransactionSubmission submission = new(txHash, req.TransactionCbor, TransactionStatus.Pending, now, null);
 
         dbContext.TransactionSubmissions.Add(submission);
         await dbContext.SaveChangesAsync(ct);

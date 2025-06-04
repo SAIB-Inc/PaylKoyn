@@ -1,6 +1,6 @@
 namespace PaylKoyn.Data.Models.Entity;
 
-public record TransactionSubmissions(
+public record TransactionSubmission(
     string Hash,
     byte[] TxRaw,
     TransactionStatus Status,
