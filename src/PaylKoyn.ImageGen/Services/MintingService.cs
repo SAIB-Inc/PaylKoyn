@@ -64,7 +64,7 @@ public class MintingService(
                 return await ProcessPaymentReceivedAsync(dbContext, mintRequest);
             }
 
-            LogPaymentStatus(id, requiredAmount, ReceivedAmount);
+            LogPaymentStatus(mintRequest.Address!, requiredAmount, ReceivedAmount);
             await Task.Delay(_utxoCheckInterval);
         }
 
@@ -243,17 +243,17 @@ public class MintingService(
         return mintRequest;
     }
 
-    private void LogPaymentStatus(int id, ulong requiredAmount, ulong receivedAmount)
+    private void LogPaymentStatus(string address, ulong requiredAmount, ulong receivedAmount)
     {
         if (receivedAmount > 0)
         {
             logger.LogWarning("Insufficient payment for request ID: {Id}. Required: {RequiredAmount} lovelace, but received: {ReceivedAmount} lovelace",
-                id, requiredAmount, receivedAmount);
+                address, requiredAmount, receivedAmount);
         }
         else
         {
             logger.LogInformation("No UTXOs found for address: {Address}. Retrying in {Interval} seconds...",
-                id, _utxoCheckInterval.TotalSeconds);
+                address, _utxoCheckInterval.TotalSeconds);
         }
     }
 
