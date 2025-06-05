@@ -54,6 +54,8 @@ echo "Setting up cardano-node connection bridge..."\n\
     echo "cardano-node:3333 available! Starting socket bridge..."\n\
     while true; do\n\
         echo "$(date): Starting socat TCP->Unix bridge..."\n\
+        # Clean up socket file before restart\n\
+        sudo rm -f /ipc/node.socket 2>/dev/null || true\n\
         socat UNIX-LISTEN:/ipc/node.socket,fork,reuseaddr TCP:cardano-node:3333\n\
         echo "$(date): Socket bridge died, restarting..."\n\
         sleep 5\n\
