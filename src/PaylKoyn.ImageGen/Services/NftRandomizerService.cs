@@ -36,7 +36,7 @@ public class NftRandomizerService(IConfiguration configuration)
             }
         }
 
-        return ImageUtil.CombineImages([.. imagePaths], outputPath);
+        return ImageUtil.CombineImages([.. imagePaths], outputPath: outputPath);
     }
 
     public IEnumerable<NftTrait> GenerateRandomTraits()
