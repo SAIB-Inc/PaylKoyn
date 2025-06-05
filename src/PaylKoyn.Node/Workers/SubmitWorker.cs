@@ -19,12 +19,7 @@ public class SubmitWorker(
             {
                 using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                List<Wallet> pendingUploads = await dbContext.Wallets
-                    .OrderBy(p => p.UpdatedAt)
-                    .Where(p => p.Status == UploadStatus.Queued)
-                    .Where(p => p.TransactionsRaw != null && p.TransactionsRaw != "[]")
-                    .Take(3)
-                    .ToListAsync(stoppingToken);
+                List<Wallet> pendingUploads = await fileService.GetActiveWalletsWithCleanupAsync(UploadStatus.Queued, limit: 3, stoppingToken);
 
                 if (pendingUploads.Count == 0)
                 {

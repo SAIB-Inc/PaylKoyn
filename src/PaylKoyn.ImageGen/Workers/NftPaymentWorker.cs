@@ -21,11 +21,7 @@ public class NftPaymentWorker(
             {
                 using MintDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                List<MintRequest> pendingPayments = await dbContext.MintRequests
-                    .OrderBy(p => p.UpdatedAt)
-                    .Where(p => p.Status == MintStatus.Waiting)
-                    .Take(5)
-                    .ToListAsync(stoppingToken);
+                List<MintRequest> pendingPayments = await mintingService.GetActiveRequestsWithCleanupAsync(MintStatus.Waiting, 5, stoppingToken);
 
                 if (pendingPayments.Count == 0)
                 {

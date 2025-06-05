@@ -47,6 +47,65 @@ public class MintingService(
         ?? throw new ArgumentNullException("Minting seed is not configured");
     private readonly ulong _invalidHereafter = configuration.GetValue<ulong?>("Minting:InvalidHereafter")
         ?? throw new ArgumentNullException("Invalid hereafter is not configured");
+    private readonly TimeSpan _requestExpirationTime = TimeSpan.FromMinutes(
+        configuration.GetValue("RequestExpirationMinutes", 30));
+
+
+    public async Task<List<MintRequest>> GetActiveRequestsByStatusAsync(
+        MintStatus status,
+        int limit = 10,
+    CancellationToken cancellationToken = default)
+    {
+        using MintDbContext dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        DateTime cutoffTime = DateTime.UtcNow - _requestExpirationTime;
+
+        return await dbContext.MintRequests
+            .Where(request => request.Status == status)
+            .Where(request => request.CreatedAt >= cutoffTime)
+            .OrderBy(request => request.UpdatedAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> MarkExpiredRequestsAsFailedAsync(
+        MintStatus status,
+        CancellationToken cancellationToken = default)
+    {
+        using var dbContext = dbContextFactory.CreateDbContext();
+
+        var cutoffTime = DateTime.UtcNow - _requestExpirationTime;
+
+        var expiredRequests = await dbContext.MintRequests
+            .Where(request => request.Status == status)
+            .Where(request => request.CreatedAt < cutoffTime)
+            .ToListAsync(cancellationToken);
+
+        if (expiredRequests.Count > 0)
+        {
+            logger.LogWarning("Marking {Count} expired {Status} requests as failed (older than {Minutes} minutes)",
+                expiredRequests.Count, status, _requestExpirationTime.TotalMinutes);
+
+            foreach (var expiredRequest in expiredRequests)
+            {
+                expiredRequest.Status = MintStatus.Failed;
+                expiredRequest.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        return expiredRequests.Count;
+    }
+
+    public async Task<List<MintRequest>> GetActiveRequestsWithCleanupAsync(
+        MintStatus status,
+        int limit = 10,
+    CancellationToken cancellationToken = default)
+    {
+        await MarkExpiredRequestsAsFailedAsync(status, cancellationToken);
+        return await GetActiveRequestsByStatusAsync(status, limit, cancellationToken);
+    }
 
     public async Task<MintRequest> WaitForPaymentAsync(int id, ulong requiredAmount)
     {

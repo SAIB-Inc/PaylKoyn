@@ -19,11 +19,7 @@ public class PaymentWorker(
             {
                 using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                List<Wallet> pendingPayments = await dbContext.Wallets
-                    .OrderBy(p => p.UpdatedAt)
-                    .Where(p => p.Status == UploadStatus.Waiting)
-                    .Take(5)
-                    .ToListAsync(stoppingToken);
+                List<Wallet> pendingPayments = await fileService.GetActiveWalletsWithCleanupAsync(UploadStatus.Waiting, limit: 5, stoppingToken);
 
                 if (pendingPayments.Count == 0)
                 {

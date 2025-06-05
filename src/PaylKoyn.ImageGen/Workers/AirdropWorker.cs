@@ -12,6 +12,7 @@ public partial class AirdropWorker(
     IConfiguration configuration,
     WalletService walletService,
     AssetTransferService assetTransferService,
+    MintingService mintingService,
     ILogger<AirdropWorker> logger
 ) : BackgroundService
 {
@@ -46,7 +47,9 @@ public partial class AirdropWorker(
             {
                 using MintDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                MintRequest? pendingAirdrop = await GetNextPendingAirdropAsync(dbContext, stoppingToken);
+                IEnumerable<MintRequest> pendingAirdrops = await mintingService.GetActiveRequestsWithCleanupAsync(MintStatus.NftSent, 1, stoppingToken);
+                MintRequest? pendingAirdrop = pendingAirdrops.FirstOrDefault();
+
                 if (pendingAirdrop is null)
                 {
                     await Task.Delay(NormalRetryDelayMs, stoppingToken);
@@ -73,14 +76,6 @@ public partial class AirdropWorker(
                 await Task.Delay(ErrorRetryDelayMs, stoppingToken);
             }
         }
-    }
-
-    private static async Task<MintRequest?> GetNextPendingAirdropAsync(MintDbContext dbContext, CancellationToken stoppingToken)
-    {
-        return await dbContext.MintRequests
-            .Where(request => request.Status == MintStatus.NftSent)
-            .OrderBy(request => request.UpdatedAt)
-            .FirstOrDefaultAsync(stoppingToken);
     }
 
     private async Task ExecuteAirdropAsync(

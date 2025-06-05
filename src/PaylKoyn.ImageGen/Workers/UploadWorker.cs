@@ -18,11 +18,7 @@ public class UploadWorker(
             {
                 using MintDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                List<MintRequest> pendingUploads = await dbContext.MintRequests
-                    .OrderBy(p => p.UpdatedAt)
-                    .Where(p => p.Status == MintStatus.Processing)
-                    .Take(5)
-                    .ToListAsync(stoppingToken);
+                List<MintRequest> pendingUploads = await mintingService.GetActiveRequestsWithCleanupAsync(MintStatus.Processing, 5, stoppingToken);
 
                 if (pendingUploads.Count == 0)
                 {
