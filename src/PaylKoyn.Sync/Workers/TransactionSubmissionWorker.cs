@@ -63,14 +63,19 @@ public class TransactionSubmissionWorker(
                                 case AcceptTx _:
                                     logger.LogInformation("Transaction {Hash} accepted. Updating to Inflight...", submission.Hash);
 
-                                    int updatedCount = await dbContext.TransactionSubmissions
+                                    await dbContext.TransactionSubmissions
                                         .Where(ts => ts.Hash == submission.Hash)
                                         .ExecuteUpdateAsync(ts => ts.SetProperty(t => t.Status, TransactionStatus.Inflight), stoppingToken);
 
-                                    logger.LogInformation("Updated {Count} transactions with hash {Hash} to Inflight", updatedCount, submission.Hash);
+                                    logger.LogInformation("Updated transaction with hash {Hash} to Inflight", submission.Hash);
                                     break;
 
                                 case RejectTx rejectTx:
+                                    
+                                    await dbContext.TransactionSubmissions
+                                        .Where(ts => ts.Hash == submission.Hash)
+                                        .ExecuteUpdateAsync(ts => ts.SetProperty(t => t.Status, TransactionStatus.Rejected), stoppingToken);
+
                                     logger.LogError("Transaction {Hash} rejected: {Error}",
                                         submission.Hash, Convert.ToHexString(rejectTx.RejectReason.Value));
                                     break;
