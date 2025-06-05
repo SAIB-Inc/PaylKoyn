@@ -20,9 +20,11 @@ public class TransactionBySlotReducer(
     public async Task RollBackwardAsync(ulong slot)
     {
         await using PaylKoynDbContext dbContext = await dbContextFactory.CreateDbContextAsync();
-        await dbContext.TransactionsBySlot.Where(x => x.Slot >= slot).ExecuteDeleteAsync();
-    }
 
+        await dbContext.TransactionsBySlot
+            .Where(x => x.Slot >= slot)
+            .ExecuteDeleteAsync();
+    }
     public async Task RollForwardAsync(Block block)
     {
         await using PaylKoynDbContext dbContext = await dbContextFactory.CreateDbContextAsync();
@@ -50,6 +52,7 @@ public class TransactionBySlotReducer(
         }).Where(x => x is not null)!;
 
         dbContext.TransactionsBySlot.AddRange(newEntries);
+
         await dbContext.SaveChangesAsync();
     }
 }

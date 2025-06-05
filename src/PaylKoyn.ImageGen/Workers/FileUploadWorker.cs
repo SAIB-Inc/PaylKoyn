@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PaylKoyn.ImageGen.Data;
 using PaylKoyn.ImageGen.Services;
 
-namespace Paylkoyn.ImageGen.Workers;
+namespace PaylKoyn.ImageGen.Workers;
 
 public class FileUploadWorker(
     IDbContextFactory<MintDbContext> dbContextFactory,

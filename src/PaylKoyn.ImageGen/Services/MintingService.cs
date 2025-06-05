@@ -12,7 +12,7 @@ using Chrysalis.Tx.Models;
 using Chrysalis.Tx.Models.Cbor;
 using Chrysalis.Wallet.Models.Keys;
 using Microsoft.EntityFrameworkCore;
-using Paylkoyn.ImageGen.Services;
+using PaylKoyn.ImageGen.Services;
 using PaylKoyn.Data.Models.Template;
 using PaylKoyn.Data.Responses;
 using PaylKoyn.Data.Services;
@@ -60,10 +60,11 @@ public class MintingService(
                 ulong totalAmount = utxos.Aggregate(0UL, (sum, utxo) => sum + utxo.Output.Amount().Lovelace());
                 logger.LogInformation("Found {UtxoCount} UTXOs with total amount: {TotalAmount} lovelace for request ID: {Id}", utxos.Count(), totalAmount, id);
 
+                logger.LogInformation("Total amount: {TotalAmount} Required amount: {RequiredAmount} Result: {Result}", totalAmount, amount, totalAmount >= amount);
+
                 if (totalAmount >= amount)
                 {
                     mintRequest = GenerateMetadata(mintRequest);
-                    //mintRequest.AssetName = $""
                     mintRequest.Status = MintStatus.PaymentReceived;
                     mintRequest.UpdatedAt = DateTime.UtcNow;
 

@@ -2,7 +2,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Formats.Png;
 
-namespace Paylkoyn.ImageGen.Utils;
+namespace PaylKoyn.ImageGen.Utils;
 
 public static class ImageUtil
 {

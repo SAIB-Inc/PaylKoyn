@@ -2,8 +2,8 @@
 using Chrysalis.Tx.Providers;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Paylkoyn.ImageGen.Services;
-using Paylkoyn.ImageGen.Workers;
+using PaylKoyn.ImageGen.Services;
+using PaylKoyn.ImageGen.Workers;
 using PaylKoyn.Data.Extensions;
 using PaylKoyn.Data.Services;
 using PaylKoyn.ImageGen.Data;
