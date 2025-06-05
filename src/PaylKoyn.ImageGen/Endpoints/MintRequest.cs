@@ -27,7 +27,7 @@ public class MintRequestDetails(IDbContextFactory<MintDbContext> dbContextFactor
         {
             MintRequest? mintRequest = await dbContext.MintRequests
                 .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Id == id, ct);
+                .FirstOrDefaultAsync(p => p.Address == id, ct);
 
             if (mintRequest is null)
             {
@@ -36,7 +36,7 @@ public class MintRequestDetails(IDbContextFactory<MintDbContext> dbContextFactor
             }
 
             MintRequestDetailsResponse response = new(
-                mintRequest.Id,
+                mintRequest.Address!,
                 mintRequest.Status.ToString(),
                 mintRequest.UploadPaymentAddress ?? string.Empty,
                 mintRequest.AdaFsId,

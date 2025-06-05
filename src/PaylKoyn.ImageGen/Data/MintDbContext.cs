@@ -15,6 +15,7 @@ public class MintDbContext(DbContextOptions Options) : DbContext(Options)
         modelBuilder.Entity<MintRequest>(e =>
         {
             e.HasKey(w => w.Id);
+            e.Property(e => e.Id).ValueGeneratedOnAdd();
             e.Property(w => w.NftNumber).IsRequired(false);
             e.HasIndex(w => w.NftNumber).IsUnique();
         });
@@ -36,9 +37,9 @@ public class MintDbContext(DbContextOptions Options) : DbContext(Options)
     {
         List<MintRequest> newlyPaidEntities = [.. ChangeTracker.Entries<MintRequest>()
             .Where(e => e.State == EntityState.Modified &&
-                       e.Entity.Status == MintStatus.PaymentReceived &&
+                       e.Entity.Status == MintStatus.Paid &&
                        e.Entity.NftNumber == null &&
-                       e.Property(nameof(MintRequest.Status)).OriginalValue?.Equals(MintStatus.Pending) == true)
+                       e.Property(nameof(MintRequest.Status)).OriginalValue?.Equals(MintStatus.Waiting) == true)
             .Select(e => e.Entity)];
 
         if (newlyPaidEntities.Count == 0) return;

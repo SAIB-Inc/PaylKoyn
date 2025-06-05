@@ -2,11 +2,11 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Formats.Png;
 
-namespace Paylkoyn.ImageGen.Utils;
+namespace PaylKoyn.ImageGen.Utils;
 
 public static class ImageUtil
 {
-    public static byte[] CombineImages(string[] imagePaths, string? outputPath = null)
+    public static byte[] CombineImages(string[] imagePaths, int width = 512, int height = 512, string? outputPath = null)
     {
         if (imagePaths == null || imagePaths.Length == 0)
             throw new ArgumentException("At least one image path is required");
@@ -22,7 +22,7 @@ public static class ImageUtil
                 using Image layerImage = Image.Load(imagePaths[i]);
                 ctx.DrawImage(layerImage, Point.Empty, 1.0f);
             }
-            ctx.Resize(500, 500);
+            ctx.Resize(width, height);
         });
 
         // Convert to byte array

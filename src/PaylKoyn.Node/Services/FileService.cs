@@ -24,226 +24,175 @@ public class FileService(
     ILogger<FileService> logger
 )
 {
-    private readonly TimeSpan _expirationTime =
-        TimeSpan.FromMinutes(int.TryParse(configuration["File:ExpirationMinutes"], out int minutes) ? minutes : 5);
-    private readonly TimeSpan _getUtxosInterval =
-        TimeSpan.FromSeconds(int.TryParse(configuration["File:GetUtxosIntervalSeconds"], out int seconds) ? seconds : 10);
+    private const decimal LovelaceToAdaRatio = 1_000_000m;
+    private const uint DefaultMaxTransactionSize = 16384;
+    private const int DefaultExpirationMinutes = 5;
+    private const int DefaultUtxoCheckIntervalSeconds = 10;
+    private const int DefaultSubmissionRetries = 3;
+    private const ulong DefaultRevenueFee = 2_000_000UL;
+
+    private readonly TimeSpan _paymentExpirationTime =
+        TimeSpan.FromMinutes(int.TryParse(configuration["File:ExpirationMinutes"], out int minutes) ? minutes : DefaultExpirationMinutes);
+    private readonly TimeSpan _utxoCheckInterval =
+        TimeSpan.FromSeconds(int.TryParse(configuration["File:GetUtxosIntervalSeconds"], out int seconds) ? seconds : DefaultUtxoCheckIntervalSeconds);
     private readonly string _rewardAddress = configuration["RewardAddress"]
         ?? throw new ArgumentException("Reward Address cannot be null or empty.", nameof(configuration));
     private readonly string _tempFilePath = configuration["File:TempFilePath"] ?? "/tmp";
     private readonly int _submissionRetries =
-        int.TryParse(configuration["File:SubmissionRetries"], out int retries) ? retries : 3;
+        int.TryParse(configuration["File:SubmissionRetries"], out int retries) ? retries : DefaultSubmissionRetries;
     private readonly ulong _revenueFee =
-        ulong.TryParse(configuration["File:RevenueFee"], out ulong revenueFee) ? revenueFee : 2_000_000UL;
-
+        ulong.TryParse(configuration["File:RevenueFee"], out ulong revenueFee) ? revenueFee : DefaultRevenueFee;
+    private readonly TimeSpan _requestExpirationTime = TimeSpan.FromMinutes(
+        configuration.GetValue("RequestExpirationMinutes", 30));
 
     public async Task<string> UploadAsync(string address, byte[] file, string contentType, string fileName, PrivateKey paymentPrivateKey)
     {
-        if (string.IsNullOrWhiteSpace(address))
-            throw new ArgumentException("Address cannot be null or empty.", nameof(address));
+        ValidateUploadParameters(address, file);
 
         using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync();
-        Wallet? wallet = await dbContext.Wallets
-            .Where(w => w.Address == address)
-            .FirstOrDefaultAsync();
+        Wallet wallet = await GetWalletForUploadAsync(dbContext, address);
 
-        if (wallet == null)
+        ulong requiredFee = await CalculateRequiredFeeAsync(file.Length);
+        ValidateWalletStatusForUpload(wallet, address, requiredFee);
+
+        string tempFilePath = await SaveFileTemporarilyAsync(address, file);
+        try
         {
-            logger.LogError("Wallet not found for address: {Address}", address);
-            throw new InvalidOperationException($"Wallet not found for address: {address}");
+            IEnumerable<ResolvedInput> utxos = await WaitForUtxosAsync(address);
+            ValidatePaymentAmount(utxos, requiredFee);
+
+            string adaFsId = await PrepareTransactionsAsync(dbContext, wallet, address, file, fileName, contentType, utxos, paymentPrivateKey);
+
+            logger.LogInformation("Upload prepared for {Address}, AdaFsId: {AdaFsId}", address, adaFsId);
+            return adaFsId;
+        }
+        finally
+        {
+            CleanupTempFile(tempFilePath);
+        }
+    }
+
+    public async Task<List<Wallet>> GetActiveWalletsByStatusAsync(
+        UploadStatus status,
+        int limit = 10,
+        CancellationToken cancellationToken = default)
+    {
+        using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var cutoffTime = DateTime.UtcNow - _requestExpirationTime;
+
+        var query = dbContext.Wallets
+            .Where(wallet => wallet.Status == status)
+            .Where(wallet => wallet.CreatedAt >= cutoffTime) // Only non-expired
+            .OrderBy(wallet => wallet.UpdatedAt)
+            .Take(limit);
+
+        // Add special condition for SubmitWorker (Queued status)
+        if (status == UploadStatus.Queued)
+        {
+            query = (IOrderedQueryable<Wallet>)query
+                .Where(wallet => wallet.TransactionsRaw != null && wallet.TransactionsRaw != "[]");
         }
 
-        ProtocolParams protocolParams = await cardanoDataProvider.GetParametersAsync();
-        ulong requiredFee = transactionService.CalculateFee(file.Length, _revenueFee, protocolParams.MaxTransactionSize ?? 16384);
-        decimal requiredFeeAda = requiredFee / 1_000_000m;
-        logger.LogInformation("Calculated required fee: {RequiredFee} lovelace for file size: {FileSize} bytes", requiredFee, file.Length);
+        return await query.ToListAsync(cancellationToken);
+    }
 
-        if (wallet.Status != UploadStatus.PaymentReceived)
+    // Method to clean up expired wallets for a specific status
+    public async Task<int> MarkExpiredWalletsAsFailedAsync(
+        UploadStatus status,
+        CancellationToken cancellationToken = default)
+    {
+        using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var cutoffTime = DateTime.UtcNow - _requestExpirationTime;
+
+        var expiredWallets = await dbContext.Wallets
+            .Where(wallet => wallet.Status == status)
+            .Where(wallet => wallet.CreatedAt < cutoffTime)
+            .ToListAsync(cancellationToken);
+
+        if (expiredWallets.Count > 0)
         {
-            logger.LogError("Wallet status is not PaymentReceived for address: {Address}", address);
+            logger.LogWarning("Marking {Count} expired {Status} wallets as failed (older than {Minutes} minutes)",
+                expiredWallets.Count, status, _requestExpirationTime.TotalMinutes);
 
-            if (wallet.Status == UploadStatus.Pending)
+            foreach (var expiredWallet in expiredWallets)
             {
-                throw new InvalidOperationException($"Please pay the required fee of {requiredFeeAda} $ADA to the address: {address} before uploading the file.");
+                expiredWallet.Status = UploadStatus.Failed;
+                expiredWallet.UpdatedAt = DateTime.UtcNow;
             }
-            else
-            {
-                throw new InvalidOperationException($"File upload is either already in progress or completed for address: {address}. Current status: {wallet.Status}. AdaFsId: {wallet.AdaFsId}");
-            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        logger.LogInformation("Saving file to temporary path: {TempFilePath}", _tempFilePath);
-        string tempFilePath = Path.Combine(_tempFilePath, address);
-        await File.WriteAllBytesAsync(tempFilePath, file);
-        logger.LogInformation("File saved to: {FilePath}", tempFilePath);
-        logger.LogInformation("Checking for UTXOs for address: {Address}", address);
+        return expiredWallets.Count;
+    }
 
-        IEnumerable<ResolvedInput> utxos = await WaitForUtxosAsync(address);
-        ulong amount = utxos.Aggregate(0UL, (sum, utxo) => sum + utxo.Output.Amount().Lovelace());
-        logger.LogInformation("Found {UtxoCount} UTXOs with total amount: {TotalAmount} lovelace", utxos.Count(), amount);
+    // Combined method that does both cleanup and retrieval
+    public async Task<List<Wallet>> GetActiveWalletsWithCleanupAsync(
+        UploadStatus status,
+        int limit = 10,
+        CancellationToken cancellationToken = default)
+    {
+        // First clean up expired wallets
+        await MarkExpiredWalletsAsFailedAsync(status, cancellationToken);
 
-        // Validate that payment is sufficient
-        if (amount < requiredFee)
-        {
-            logger.LogError("Insufficient payment. Required: {RequiredFee} lovelace, but received: {ReceivedAmount} lovelace", requiredFee, amount);
-            throw new InvalidOperationException($"Insufficient payment. Required: {requiredFee} lovelace, but received: {amount} lovelace");
-        }
-
-        logger.LogInformation("Payment validation successful. Proceeding with upload.");
-
-        logger.LogInformation("Preparing transaction to upload file: {FileName}", fileName);
-        List<Transaction> txs = transactionService.UploadFile(
-            address,
-            file,
-            fileName,
-            contentType,
-            [.. utxos],
-            protocolParams,
-            _rewardAddress
-        );
-
-        txs = [.. txs.Select(tx => tx.Sign(paymentPrivateKey))];
-
-        PostMaryTransaction lastTx = (PostMaryTransaction)txs.Last();
-        string adaFsId = Convert.ToHexString(HashUtil.ToBlake2b256(CborSerializer.Serialize(lastTx.TransactionBody))).ToLowerInvariant();
-        wallet.AdaFsId = adaFsId;
-        wallet.Transactions = [.. txs.Select(tx => new TxStatus(CborSerializer.Serialize(tx), false, false))];
-        wallet.FileSize = file.Length;
-        wallet.Status = UploadStatus.QueudForSubmission;
-        wallet.UpdatedAt = DateTime.UtcNow;
-
-        dbContext.Wallets.Update(wallet);
-        await dbContext.SaveChangesAsync();
-
-        logger.LogInformation("Deleting temporary file: {FilePath}", tempFilePath);
-        if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
-
-        return adaFsId;
+        // Then get active wallets
+        return await GetActiveWalletsByStatusAsync(status, limit, cancellationToken);
     }
 
     public async Task<Wallet?> WaitForPaymentAsync(string address)
     {
-        if (string.IsNullOrWhiteSpace(address))
-            throw new ArgumentException("Address cannot be null or empty.", nameof(address));
+        ValidateAddress(address);
 
         using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync();
-        Wallet? wallet = await dbContext.Wallets
-            .Where(w => w.Address == address)
-            .FirstOrDefaultAsync();
-
-        if (wallet is null)
-        {
-            logger.LogError("Wallet not found for address: {Address}", address);
-            throw new InvalidOperationException($"Wallet not found for address: {address}");
-        }
+        Wallet wallet = await GetWalletAsync(dbContext, address);
 
         try
         {
-            logger.LogInformation("Checking for UTXOs for address: {Address}", address);
             IEnumerable<ResolvedInput> utxos = await WaitForUtxosAsync(address);
-            ulong amount = utxos.Aggregate(0UL, (sum, utxo) => sum + utxo.Output.Amount().Lovelace());
-            logger.LogInformation("Found {UtxoCount} UTXOs with total amount: {TotalAmount} lovelace", utxos.Count(), amount);
+            ulong requiredFee = await CalculateRequiredFeeAsync(wallet.FileSize);
 
-            ProtocolParams protocolParams = await cardanoDataProvider.GetParametersAsync();
-            // Calculate required fee for the file upload
-            ulong requiredFee = transactionService.CalculateFee(wallet!.FileSize, _revenueFee, protocolParams.MaxTransactionSize ?? 16384);
+            ulong totalAmount = CalculateTotalAmount(utxos);
+            wallet.Status = totalAmount >= requiredFee ? UploadStatus.Paid : wallet.Status;
 
-            // Validate that payment is sufficient
-            if (amount >= requiredFee)
+            if (wallet.Status != UploadStatus.Paid)
             {
-                wallet.Status = UploadStatus.PaymentReceived;
-            }
-            else
-            {
-                logger.LogError("Insufficient payment. Required: {RequiredFee} lovelace, but received: {ReceivedAmount} lovelace", requiredFee, amount);
+                logger.LogError("Insufficient payment for {Address}. Required: {Required}, Received: {Received}",
+                    address, requiredFee, totalAmount);
             }
         }
         catch (TimeoutException ex)
         {
-            logger.LogError(ex, "Timeout while waiting for UTXOs for address: {Address}", address);
+            logger.LogError(ex, "Payment timeout for {Address}", address);
             wallet.Status = UploadStatus.Failed;
             wallet.TransactionsRaw = null;
             wallet.Transactions = null;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error while waiting for payment for address: {Address}", address);
+            logger.LogError(ex, "Payment error for {Address}", address);
         }
 
-        wallet.UpdatedAt = DateTime.UtcNow;
-        dbContext.Wallets.Update(wallet);
-        await dbContext.SaveChangesAsync();
-        logger.LogInformation("Wallet updated with payment status for address: {Address}", address);
-        return wallet;
+        return await UpdateWalletAsync(dbContext, wallet, address);
     }
 
     public async Task<Wallet> SubmitTransactionsAsync(string address)
     {
         using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync();
-        Wallet? wallet = await dbContext.Wallets.Where(w => w.Address == address).FirstOrDefaultAsync();
+        Wallet wallet = await GetWalletWithTransactionsAsync(dbContext, address);
 
-        if (wallet == null || wallet.Transactions is null || wallet.Transactions.Count == 0)
-        {
-            logger.LogError("Wallet not found or no transactions to submit for address: {Address}", address);
-            throw new InvalidOperationException($"Wallet not found for address: {address}");
-        }
+        (List<TxStatus> updatedTransactions, bool hasChanges) = await ProcessTransactionSubmissionsAsync(wallet.Transactions);
 
-        List<TxStatus> updatedTransactions = new List<TxStatus>();
-        bool anyChanges = false;
-
-        foreach (TxStatus txStatus in wallet.Transactions)
-        {
-            if (txStatus.IsSent)
-            {
-                // Already sent, keep as-is
-                updatedTransactions.Add(txStatus);
-                continue;
-            }
-
-            Transaction tx = Transaction.Read(txStatus.TxRaw);
-            logger.LogInformation("Submitting transaction to the network");
-
-            int retriesRemaining = _submissionRetries;
-            bool wasSubmitted = false;
-
-            while (retriesRemaining > 0)
-            {
-                try
-                {
-                    string txHash = await cardanoDataProvider.SubmitTransactionAsync(tx);
-                    logger.LogInformation("Transaction submitted successfully: {TransactionId}", txHash);
-
-                    // ✅ Create new record with IsSent = true
-                    TxStatus updatedTxStatus = txStatus with { IsSent = true };
-                    updatedTransactions.Add(updatedTxStatus);
-                    wasSubmitted = true;
-                    anyChanges = true;
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to submit transaction. Retrying...");
-                    retriesRemaining--;
-                    if (retriesRemaining <= 0) break;
-                    await Task.Delay(_getUtxosInterval);
-                }
-            }
-
-            if (!wasSubmitted)
-            {
-                updatedTransactions.Add(txStatus);
-            }
-        }
-
-        if (anyChanges)
+        if (hasChanges)
         {
             wallet.Transactions = updatedTransactions;
             wallet.UpdatedAt = DateTime.UtcNow;
 
-            if (wallet.Transactions.All(t => t.IsSent))
+            if (wallet.Transactions.All(tx => tx.IsSent))
             {
-                wallet.Status = UploadStatus.Completed;
-                logger.LogInformation("All transactions submitted successfully for address: {Address}", address);
+                wallet.Status = UploadStatus.Uploaded;
+                logger.LogInformation("All transactions submitted for {Address}", address);
             }
 
             dbContext.Wallets.Update(wallet);
@@ -251,21 +200,6 @@ public class FileService(
         }
 
         return wallet;
-    }
-
-    private async Task<IEnumerable<ResolvedInput>> WaitForUtxosAsync(string address)
-    {
-        Stopwatch stopwatch = Stopwatch.StartNew();
-        while (stopwatch.Elapsed < _expirationTime)
-        {
-            (bool isSuccess, IEnumerable<ResolvedInput> utxos) = await TryGetUtxosAsync(address);
-            if (isSuccess) return utxos;
-
-            logger.LogInformation("No UTXOs found for address: {Address}. Retrying in {Interval} seconds...", address, _getUtxosInterval.TotalSeconds);
-            await Task.Delay(_getUtxosInterval);
-        }
-
-        throw new TimeoutException("Upload request has expired, no UTXOs found for the address within the specified time.");
     }
 
     public async Task<(bool success, IEnumerable<ResolvedInput> utxos)> TryGetUtxosAsync(string address)
@@ -279,5 +213,214 @@ public class FileService(
         {
             return (false, Enumerable.Empty<ResolvedInput>());
         }
+    }
+
+    private static void ValidateUploadParameters(string address, byte[] file)
+    {
+        if (string.IsNullOrWhiteSpace(address))
+            throw new ArgumentException("Address cannot be null or empty.", nameof(address));
+        if (file?.Length == 0)
+            throw new ArgumentException("File cannot be null or empty.", nameof(file));
+    }
+
+    private static void ValidateAddress(string address)
+    {
+        if (string.IsNullOrWhiteSpace(address))
+            throw new ArgumentException("Address cannot be null or empty.", nameof(address));
+    }
+
+    private async Task<Wallet> GetWalletForUploadAsync(WalletDbContext dbContext, string address)
+    {
+        Wallet? wallet = await dbContext.Wallets.FirstOrDefaultAsync(w => w.Address == address);
+        if (wallet is null)
+        {
+            logger.LogError("Wallet not found: {Address}", address);
+            throw new InvalidOperationException($"Wallet not found for address: {address}");
+        }
+        return wallet;
+    }
+
+    private async Task<Wallet> GetWalletAsync(WalletDbContext dbContext, string address)
+    {
+        Wallet? wallet = await dbContext.Wallets.FirstOrDefaultAsync(w => w.Address == address);
+        if (wallet is null)
+        {
+            logger.LogError("Wallet not found: {Address}", address);
+            throw new InvalidOperationException($"Wallet not found for address: {address}");
+        }
+        return wallet;
+    }
+
+    private async Task<Wallet> GetWalletWithTransactionsAsync(WalletDbContext dbContext, string address)
+    {
+        Wallet? wallet = await dbContext.Wallets.FirstOrDefaultAsync(w => w.Address == address);
+        if (wallet?.Transactions is null || wallet.Transactions.Count == 0)
+        {
+            logger.LogError("No transactions to submit for {Address}", address);
+            throw new InvalidOperationException($"Wallet not found for address: {address}");
+        }
+        return wallet;
+    }
+
+    private async Task<ulong> CalculateRequiredFeeAsync(int fileSize)
+    {
+        ProtocolParams protocolParams = await cardanoDataProvider.GetParametersAsync();
+        ulong fee = transactionService.CalculateFee(fileSize, _revenueFee, protocolParams.MaxTransactionSize ?? DefaultMaxTransactionSize);
+
+        logger.LogInformation("Required fee: {Fee} lovelace for {Size} bytes", fee, fileSize);
+        return fee;
+    }
+
+    private void ValidateWalletStatusForUpload(Wallet wallet, string address, ulong requiredFee)
+    {
+        if (wallet.Status == UploadStatus.Waiting)
+        {
+            decimal requiredFeeAda = requiredFee / LovelaceToAdaRatio;
+            throw new InvalidOperationException($"Please pay the required fee of {requiredFeeAda} $ADA to the address: {address} before uploading the file.");
+        }
+
+        if (wallet.Status != UploadStatus.Paid)
+        {
+            throw new InvalidOperationException($"File upload is either already in progress or completed for address: {address}. Current status: {wallet.Status}. AdaFsId: {wallet.AdaFsId}");
+        }
+    }
+
+    private async Task<string> SaveFileTemporarilyAsync(string address, byte[] file)
+    {
+        string tempFilePath = Path.Combine(_tempFilePath, address);
+        await File.WriteAllBytesAsync(tempFilePath, file);
+        logger.LogInformation("File saved temporarily: {Path}", tempFilePath);
+        return tempFilePath;
+    }
+
+    private void CleanupTempFile(string tempFilePath)
+    {
+        if (File.Exists(tempFilePath))
+        {
+            File.Delete(tempFilePath);
+            logger.LogInformation("Temp file cleaned up: {Path}", tempFilePath);
+        }
+    }
+
+    private static ulong CalculateTotalAmount(IEnumerable<ResolvedInput> utxos)
+    {
+        return utxos.Aggregate(0UL, (sum, utxo) => sum + utxo.Output.Amount().Lovelace());
+    }
+
+    private void ValidatePaymentAmount(IEnumerable<ResolvedInput> utxos, ulong requiredFee)
+    {
+        ulong totalAmount = CalculateTotalAmount(utxos);
+        logger.LogInformation("Found {Count} UTXOs, total: {Amount} lovelace", utxos.Count(), totalAmount);
+
+        if (totalAmount < requiredFee)
+        {
+            logger.LogError("Insufficient payment. Required: {Required}, Received: {Received}", requiredFee, totalAmount);
+            throw new InvalidOperationException($"Insufficient payment. Required: {requiredFee} lovelace, but received: {totalAmount} lovelace");
+        }
+
+        logger.LogInformation("Payment validation successful");
+    }
+
+    private async Task<string> PrepareTransactionsAsync(
+        WalletDbContext dbContext,
+        Wallet wallet,
+        string address,
+        byte[] file,
+        string fileName,
+        string contentType,
+        IEnumerable<ResolvedInput> utxos,
+        PrivateKey paymentPrivateKey)
+    {
+        logger.LogInformation("Preparing upload transaction: {FileName}", fileName);
+
+        ProtocolParams protocolParams = await cardanoDataProvider.GetParametersAsync();
+        List<Transaction> transactions = transactionService.UploadFile(address, file, fileName, contentType, [.. utxos], protocolParams, _rewardAddress);
+        List<Transaction> signedTransactions = transactions.Select(tx => tx.Sign(paymentPrivateKey)).ToList();
+
+        PostMaryTransaction lastTransaction = (PostMaryTransaction)signedTransactions.Last();
+        string adaFsId = Convert.ToHexString(HashUtil.ToBlake2b256(CborSerializer.Serialize(lastTransaction.TransactionBody))).ToLowerInvariant();
+
+        wallet.AdaFsId = adaFsId;
+        wallet.Transactions = [.. signedTransactions.Select(tx => new TxStatus(CborSerializer.Serialize(tx), false, false))];
+        wallet.FileSize = file.Length;
+        wallet.Status = UploadStatus.Queued;
+        wallet.UpdatedAt = DateTime.UtcNow;
+
+        dbContext.Wallets.Update(wallet);
+        await dbContext.SaveChangesAsync();
+
+        return adaFsId;
+    }
+
+    private async Task<Wallet> UpdateWalletAsync(WalletDbContext dbContext, Wallet wallet, string address)
+    {
+        wallet.UpdatedAt = DateTime.UtcNow;
+        dbContext.Wallets.Update(wallet);
+        await dbContext.SaveChangesAsync();
+        logger.LogInformation("Wallet updated: {Address}", address);
+        return wallet;
+    }
+
+    private async Task<(List<TxStatus> UpdatedTransactions, bool HasChanges)> ProcessTransactionSubmissionsAsync(List<TxStatus>? transactions)
+    {
+        List<TxStatus> updatedTransactions = [];
+        bool hasChanges = false;
+
+        foreach (TxStatus txStatus in transactions ?? [])
+        {
+            if (txStatus.IsSent)
+            {
+                updatedTransactions.Add(txStatus);
+                continue;
+            }
+
+            Transaction transaction = Transaction.Read(txStatus.TxRaw);
+            (bool wasSubmitted, TxStatus updatedStatus) = await TrySubmitTransactionWithRetriesAsync(transaction, txStatus);
+
+            updatedTransactions.Add(updatedStatus);
+            if (wasSubmitted) hasChanges = true;
+        }
+
+        return (updatedTransactions, hasChanges);
+    }
+
+    private async Task<(bool WasSubmitted, TxStatus UpdatedStatus)> TrySubmitTransactionWithRetriesAsync(Transaction transaction, TxStatus originalStatus)
+    {
+        int retriesRemaining = _submissionRetries;
+
+        while (retriesRemaining > 0)
+        {
+            try
+            {
+                string txHash = await cardanoDataProvider.SubmitTransactionAsync(transaction);
+                logger.LogInformation("Transaction submitted: {TxHash}", txHash);
+                return (true, originalStatus with { IsSent = true });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Transaction submission failed, retrying...");
+                retriesRemaining--;
+                if (retriesRemaining > 0)
+                    await Task.Delay(_utxoCheckInterval);
+            }
+        }
+
+        return (false, originalStatus);
+    }
+
+    private async Task<IEnumerable<ResolvedInput>> WaitForUtxosAsync(string address)
+    {
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        while (stopwatch.Elapsed < _paymentExpirationTime)
+        {
+            (bool isSuccess, IEnumerable<ResolvedInput> utxos) = await TryGetUtxosAsync(address);
+            if (isSuccess) return utxos;
+
+            logger.LogInformation("No UTXOs found for {Address}, retrying in {Interval}s...",
+                address, _utxoCheckInterval.TotalSeconds);
+            await Task.Delay(_utxoCheckInterval);
+        }
+
+        throw new TimeoutException("Upload request has expired, no UTXOs found for the address within the specified time.");
     }
 }

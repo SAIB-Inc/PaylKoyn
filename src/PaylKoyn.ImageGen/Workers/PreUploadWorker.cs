@@ -3,9 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using PaylKoyn.ImageGen.Data;
 using PaylKoyn.ImageGen.Services;
 
-namespace Paylkoyn.ImageGen.Workers;
+namespace PaylKoyn.ImageGen.Workers;
 
-public class FileUploadPaymentWorker(
+public class PreUploadWorker(
     IDbContextFactory<MintDbContext> dbContextFactory,
     MintingService mintingService
 ) : BackgroundService
@@ -18,11 +18,7 @@ public class FileUploadPaymentWorker(
             {
                 using MintDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                List<MintRequest> pendingUploadPayments = await dbContext.MintRequests
-                    .OrderBy(p => p.UpdatedAt)
-                    .Where(p => p.Status == MintStatus.PaymentReceived)
-                    .Take(3)
-                    .ToListAsync(stoppingToken);
+                List<MintRequest> pendingUploadPayments = await mintingService.GetActiveRequestsWithCleanupAsync(MintStatus.Paid, 3, stoppingToken);
 
                 if (pendingUploadPayments.Count == 0)
                 {

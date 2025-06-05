@@ -9,9 +9,9 @@ using PaylKoyn.ImageGen.Services;
 using PaylKoyn.ImageGen.Utils;
 using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;
 
-namespace Paylkoyn.ImageGen.Workers;
+namespace PaylKoyn.ImageGen.Workers;
 
-public partial class MintWorker(
+public partial class NftMintWorker(
     IDbContextFactory<MintDbContext> dbContextFactory,
     IConfiguration configuration,
     MintingService mintingService,
@@ -35,11 +35,7 @@ public partial class MintWorker(
             {
                 using MintDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                List<MintRequest> pendingMints = await dbContext.MintRequests
-                        .OrderBy(p => p.UpdatedAt)
-                        .Where(p => p.Status == MintStatus.ImageUploaded)
-                        .Take(3)
-                        .ToListAsync(stoppingToken);
+                List<MintRequest> pendingMints = await mintingService.GetActiveRequestsWithCleanupAsync(MintStatus.Uploaded, 3, stoppingToken);
 
                 if (pendingMints.Count == 0)
                 {
@@ -48,7 +44,7 @@ public partial class MintWorker(
                 }
 
                 Task<MintRequest>[] tasks = [.. pendingMints.Select(request => {
-                    string asciiAssetName = $"{_nftBaseName} #{request.NftNumber}";
+                    string asciiAssetName = $"{_nftBaseName} #{request.NftNumber.ToString()!.PadLeft(4, '0')}";
                     string cleanAsciiAssetName = AlphaNumericRegex().Replace(asciiAssetName, "");
                     string assetName = Convert.ToHexString(Encoding.UTF8.GetBytes(cleanAsciiAssetName));
                     return mintingService.MintNftAsync(request.Id, policyId, assetName, asciiAssetName, _rewardAddress);

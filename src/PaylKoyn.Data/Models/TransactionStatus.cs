@@ -5,4 +5,5 @@ public enum TransactionStatus
     Pending,
     Inflight,
     Confirmed,
+    Rejected
 }

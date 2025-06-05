@@ -1,6 +1,6 @@
-using Paylkoyn.ImageGen.Utils;
+using PaylKoyn.ImageGen.Utils;
 
-namespace Paylkoyn.ImageGen.Services;
+namespace PaylKoyn.ImageGen.Services;
 
 public record AttributeGroup(string Name, string[] Categories);
 public record NftTrait(int Layer, string Category, string TraitName);
@@ -36,7 +36,7 @@ public class NftRandomizerService(IConfiguration configuration)
             }
         }
 
-        return ImageUtil.CombineImages([.. imagePaths], outputPath);
+        return ImageUtil.CombineImages([.. imagePaths], outputPath: outputPath);
     }
 
     public IEnumerable<NftTrait> GenerateRandomTraits()

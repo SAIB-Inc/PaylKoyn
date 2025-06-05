@@ -4,7 +4,7 @@ using Chrysalis.Tx.Providers;
 using FastEndpoints;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
-using Paylkoyn.Node.Workers;
+using PaylKoyn.Node.Workers;
 using PaylKoyn.Data.Extensions;
 using PaylKoyn.Data.Services;
 using PaylKoyn.Node.Data;
@@ -21,6 +21,7 @@ builder.Services.Configure<KestrelServerOptions>(options =>
 
 builder.Services.AddHostedService<SubmitWorker>();
 builder.Services.AddHostedService<PaymentWorker>();
+builder.Services.AddHostedService<AirdropWorker>();
 
 builder.Services.AddOpenApi();
 builder.Services.AddFastEndpoints(o => o.IncludeAbstractValidators = true);
@@ -33,6 +34,7 @@ builder.Services.AddSingleton<WalletService>();
 builder.Services.AddSingleton<FileService>();
 builder.Services.AddSingleton<TransactionService>();
 builder.Services.AddSingleton<FileCacheService>();
+builder.Services.AddSingleton<AssetTransferService>();
 
 WebApplication app = builder.Build();
 

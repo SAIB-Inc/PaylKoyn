@@ -4,7 +4,7 @@ using PaylKoyn.Data.Models;
 using PaylKoyn.Node.Data;
 using PaylKoyn.Node.Services;
 
-namespace Paylkoyn.Node.Workers;
+namespace PaylKoyn.Node.Workers;
 
 public class SubmitWorker(
     IDbContextFactory<WalletDbContext> dbContextFactory,
@@ -19,12 +19,7 @@ public class SubmitWorker(
             {
                 using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                List<Wallet> pendingUploads = await dbContext.Wallets
-                    .OrderBy(p => p.UpdatedAt)
-                    .Where(p => p.Status == UploadStatus.QueudForSubmission)
-                    .Where(p => p.TransactionsRaw != null && p.TransactionsRaw != "[]")
-                    .Take(3)
-                    .ToListAsync(stoppingToken);
+                List<Wallet> pendingUploads = await fileService.GetActiveWalletsWithCleanupAsync(UploadStatus.Queued, limit: 3, stoppingToken);
 
                 if (pendingUploads.Count == 0)
                 {
@@ -33,7 +28,7 @@ public class SubmitWorker(
                 }
 
                 Task<Wallet>[] tasks = [.. pendingUploads.Select(request =>
-                    fileService.SubmitTransactionsAsync(request.Address)
+                    fileService.SubmitTransactionsAsync(request.Address!)
                 )];
 
                 await Task.WhenAll(tasks);

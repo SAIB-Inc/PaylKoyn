@@ -2,16 +2,19 @@ namespace PaylKoyn.ImageGen.Data;
 
 public enum MintStatus
 {
-    Pending,
-    PaymentReceived,
-    UploadPaymentSent,
-    ImageUploaded,
-    Minted,
+    Waiting,
+    Paid,
+    Processing,
+    Uploaded,
+    NftSent,
+    TokenSent,
+    RefundRequested,
+    Refunded,
     Failed
 }
 
 public record MintRequest(
-    string Id,
+    string? Address,
     int WalletIndex,
     string UserAddress,
     string? UploadPaymentAddress,
@@ -21,6 +24,7 @@ public record MintRequest(
     string? NftMetadata,
     string? AdaFsId,
     string? MintTxHash,
+    string? AirdropTxHash,
     string? Traits,
     byte[]? Image,
     MintStatus Status,
@@ -29,7 +33,8 @@ public record MintRequest(
     DateTime UpdatedAt
 )
 {
-    public string Id { get; init; } = Id;
+    public int Id { get; init; }
+    public string? Address { get; set; } = Address;
     public int WalletIndex { get; init; } = WalletIndex;
     public string UserAddress { get; init; } = UserAddress;
     public string? UploadPaymentAddress { get; set; } = UploadPaymentAddress;
@@ -39,6 +44,7 @@ public record MintRequest(
     public string? NftMetadata { get; set; } = NftMetadata;
     public string? AdaFsId { get; set; } = AdaFsId;
     public string? MintTxHash { get; set; } = MintTxHash;
+    public string? AirdropTxHash { get; set; } = AirdropTxHash;
     public string? Traits { get; set; } = Traits;
     public byte[]? Image { get; set; } = Image;
     public MintStatus Status { get; set; } = Status;

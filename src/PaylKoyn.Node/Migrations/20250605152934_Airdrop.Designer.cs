@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PaylKoyn.Node.Data;
 
@@ -10,23 +11,21 @@ using PaylKoyn.Node.Data;
 namespace PaylKoyn.Node.Migrations
 {
     [DbContext(typeof(WalletDbContext))]
-    partial class WalletDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250605152934_Airdrop")]
+    partial class Airdrop
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.5");
 
             modelBuilder.Entity("PaylKoyn.Data.Models.Wallet", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("AdaFsId")
+                    b.Property<string>("Address")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Address")
+                    b.Property<string>("AdaFsId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("AirdropAddress")
@@ -41,6 +40,9 @@ namespace PaylKoyn.Node.Migrations
                     b.Property<int>("FileSize")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("Index")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
 
@@ -50,9 +52,7 @@ namespace PaylKoyn.Node.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
-                    b.HasKey("Id");
-
-                    b.HasIndex("Address");
+                    b.HasKey("Address");
 
                     b.ToTable("Wallets");
                 });
