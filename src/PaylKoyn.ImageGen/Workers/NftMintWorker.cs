@@ -11,7 +11,7 @@ using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;
 
 namespace PaylKoyn.ImageGen.Workers;
 
-public partial class MintWorker(
+public partial class NftMintWorker(
     IDbContextFactory<MintDbContext> dbContextFactory,
     IConfiguration configuration,
     MintingService mintingService,
@@ -37,7 +37,7 @@ public partial class MintWorker(
 
                 List<MintRequest> pendingMints = await dbContext.MintRequests
                         .OrderBy(p => p.UpdatedAt)
-                        .Where(p => p.Status == MintStatus.ImageUploaded)
+                        .Where(p => p.Status == MintStatus.Uploaded)
                         .Take(3)
                         .ToListAsync(stoppingToken);
 
