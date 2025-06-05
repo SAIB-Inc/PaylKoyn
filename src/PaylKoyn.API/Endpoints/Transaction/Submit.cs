@@ -54,6 +54,7 @@ public class SubmitTransaction(IDbContextFactory<PaylKoynDbContext> dbContextFac
         if (hashExists)
         {
             await SendAsync("Transaction with this hash already exists.", StatusCodes.Status409Conflict, ct);
+            return;
         }
 
         TransactionSubmission submission = new(txHash, req.TransactionCbor, TransactionStatus.Pending, now, null);
