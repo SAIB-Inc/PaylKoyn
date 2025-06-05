@@ -17,7 +17,7 @@ public class SubmitTransactionBinder : IRequestBinder<SubmitTransactionRequest>
     {
         using var ms = new MemoryStream();
         await ctx.HttpContext.Request.Body.CopyToAsync(ms, ct);
-        
+
         return new SubmitTransactionRequest(ms.ToArray());
     }
 }
@@ -48,6 +48,14 @@ public class SubmitTransaction(IDbContextFactory<PaylKoynDbContext> dbContextFac
         string txHash = Convert.ToHexStringLower(HashUtil.Blake2b256(CborSerializer.Serialize(tx.TransactionBody)));
 
         long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+        bool hashExists = await dbContext.TransactionSubmissions
+            .AnyAsync(ts => ts.Hash == txHash, ct);
+
+        if (hashExists)
+        {
+            await SendAsync("Transaction with this hash already exists.", StatusCodes.Status409Conflict, ct);
+        }
 
         TransactionSubmission submission = new(txHash, req.TransactionCbor, TransactionStatus.Pending, now, null);
 
