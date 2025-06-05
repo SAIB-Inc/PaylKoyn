@@ -18,11 +18,7 @@ public class PreUploadWorker(
             {
                 using MintDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                List<MintRequest> pendingUploadPayments = await dbContext.MintRequests
-                    .OrderBy(p => p.UpdatedAt)
-                    .Where(p => p.Status == MintStatus.Paid)
-                    .Take(3)
-                    .ToListAsync(stoppingToken);
+                List<MintRequest> pendingUploadPayments = await mintingService.GetActiveRequestsWithCleanupAsync(MintStatus.Paid, 3, stoppingToken);
 
                 if (pendingUploadPayments.Count == 0)
                 {

@@ -42,6 +42,8 @@ public class FileService(
         int.TryParse(configuration["File:SubmissionRetries"], out int retries) ? retries : DefaultSubmissionRetries;
     private readonly ulong _revenueFee =
         ulong.TryParse(configuration["File:RevenueFee"], out ulong revenueFee) ? revenueFee : DefaultRevenueFee;
+    private readonly TimeSpan _requestExpirationTime = TimeSpan.FromMinutes(
+        configuration.GetValue("RequestExpirationMinutes", 30));
 
     public async Task<string> UploadAsync(string address, byte[] file, string contentType, string fileName, PrivateKey paymentPrivateKey)
     {
@@ -68,6 +70,75 @@ public class FileService(
         {
             CleanupTempFile(tempFilePath);
         }
+    }
+
+    public async Task<List<Wallet>> GetActiveWalletsByStatusAsync(
+        UploadStatus status,
+        int limit = 10,
+        CancellationToken cancellationToken = default)
+    {
+        using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var cutoffTime = DateTime.UtcNow - _requestExpirationTime;
+
+        var query = dbContext.Wallets
+            .Where(wallet => wallet.Status == status)
+            .Where(wallet => wallet.CreatedAt >= cutoffTime) // Only non-expired
+            .OrderBy(wallet => wallet.UpdatedAt)
+            .Take(limit);
+
+        // Add special condition for SubmitWorker (Queued status)
+        if (status == UploadStatus.Queued)
+        {
+            query = (IOrderedQueryable<Wallet>)query
+                .Where(wallet => wallet.TransactionsRaw != null && wallet.TransactionsRaw != "[]");
+        }
+
+        return await query.ToListAsync(cancellationToken);
+    }
+
+    // Method to clean up expired wallets for a specific status
+    public async Task<int> MarkExpiredWalletsAsFailedAsync(
+        UploadStatus status,
+        CancellationToken cancellationToken = default)
+    {
+        using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var cutoffTime = DateTime.UtcNow - _requestExpirationTime;
+
+        var expiredWallets = await dbContext.Wallets
+            .Where(wallet => wallet.Status == status)
+            .Where(wallet => wallet.CreatedAt < cutoffTime)
+            .ToListAsync(cancellationToken);
+
+        if (expiredWallets.Count > 0)
+        {
+            logger.LogWarning("Marking {Count} expired {Status} wallets as failed (older than {Minutes} minutes)",
+                expiredWallets.Count, status, _requestExpirationTime.TotalMinutes);
+
+            foreach (var expiredWallet in expiredWallets)
+            {
+                expiredWallet.Status = UploadStatus.Failed;
+                expiredWallet.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        return expiredWallets.Count;
+    }
+
+    // Combined method that does both cleanup and retrieval
+    public async Task<List<Wallet>> GetActiveWalletsWithCleanupAsync(
+        UploadStatus status,
+        int limit = 10,
+        CancellationToken cancellationToken = default)
+    {
+        // First clean up expired wallets
+        await MarkExpiredWalletsAsFailedAsync(status, cancellationToken);
+
+        // Then get active wallets
+        return await GetActiveWalletsByStatusAsync(status, limit, cancellationToken);
     }
 
     public async Task<Wallet?> WaitForPaymentAsync(string address)

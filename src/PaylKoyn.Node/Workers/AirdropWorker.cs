@@ -4,6 +4,7 @@ using PaylKoyn.Data.Models;
 using PaylKoyn.Data.Services;
 using PaylKoyn.Data.Utils;
 using PaylKoyn.Node.Data;
+using PaylKoyn.Node.Services;
 
 namespace PaylKoyn.Node.Workers;
 
@@ -11,6 +12,7 @@ public partial class AirdropWorker(
     IDbContextFactory<WalletDbContext> dbContextFactory,
     IConfiguration configuration,
     AssetTransferService assetTransferService,
+    FileService fileService,
     ILogger<AirdropWorker> logger
 ) : BackgroundService
 {
@@ -46,12 +48,15 @@ public partial class AirdropWorker(
             {
                 using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                Wallet? pendingWallet = await GetNextPendingAirdropAsync(dbContext, stoppingToken);
-                if (pendingWallet is null)
+                List<Wallet> pendingWallets = await fileService.GetActiveWalletsWithCleanupAsync(UploadStatus.Uploaded, limit: 1, stoppingToken);
+
+                if (pendingWallets.Count == 0)
                 {
                     await Task.Delay(NormalRetryDelayMs, stoppingToken);
                     continue;
                 }
+
+                Wallet pendingWallet = pendingWallets.First();
 
                 bool hasBalance = await assetTransferService.ValidateAirdropBalanceAsync(
                     airdropAddressBech32, _policyId, _assetName, MinimumLovelaceBalance, _airdropAmount);
