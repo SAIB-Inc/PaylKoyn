@@ -17,9 +17,9 @@ public partial class AirdropWorker(
     private const int NormalRetryDelayMs = 5_000;
     private const int ErrorRetryDelayMs = 20_000;
     private const ulong MinimumLovelaceBalance = 2_500_000UL;
-    private const ulong FixedLovelaceAmount = 2_000_000UL;
     private const int AirdropWalletIndex = 0;
 
+    private readonly ulong _minUtxoAda = configuration.GetValue("Airdrop:MinUtxoAda", 2_000_000UL);
     private readonly string _airdropSeed = configuration.GetValue<string>("Airdrop:Seed")
         ?? throw new ArgumentNullException("Airdrop Seed is not configured");
     private readonly string _policyId = configuration.GetValue<string>("Airdrop:PolicyId")
@@ -36,7 +36,7 @@ public partial class AirdropWorker(
         string airdropAddressBech32 = airdropAddress.ToBech32();
         PrivateKey privateKey = WalletUtils.GetPaymentPrivateKey(_airdropSeed, AirdropWalletIndex);
         Dictionary<string, Dictionary<string, ulong>> assetMap =
-             AssetTransferService.CreateAssetMap(_policyId, _assetName, _airdropAmount, FixedLovelaceAmount);
+             AssetTransferService.CreateAssetMap(_policyId, _assetName, _airdropAmount, _minUtxoAda);
 
         logger.LogInformation("Node Airdrop Worker started. Address: {Address}", airdropAddressBech32);
 
