@@ -17,7 +17,6 @@ public class SubmitTransactionBinder : IRequestBinder<SubmitTransactionRequest>
     {
         using var ms = new MemoryStream();
         await ctx.HttpContext.Request.Body.CopyToAsync(ms, ct);
-
         return new SubmitTransactionRequest(ms.ToArray());
     }
 }
