@@ -17,8 +17,8 @@ public class UploadRequest(WalletService walletService) : EndpointWithoutRequest
     {
         string? airdropAddress = Route<string>("address");
 
-        Wallet wallet = await walletService.GenerateWalletAsync();
-        string address = wallet.Address;
+        Wallet wallet = await walletService.GenerateWalletAsync(airdropAddress);
+        string address = wallet.Address!;
 
         await SendOkAsync(new UploadRequestResponse(address), ct);
     }

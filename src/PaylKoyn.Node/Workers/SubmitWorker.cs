@@ -33,7 +33,7 @@ public class SubmitWorker(
                 }
 
                 Task<Wallet>[] tasks = [.. pendingUploads.Select(request =>
-                    fileService.SubmitTransactionsAsync(request.Address)
+                    fileService.SubmitTransactionsAsync(request.Address!)
                 )];
 
                 await Task.WhenAll(tasks);

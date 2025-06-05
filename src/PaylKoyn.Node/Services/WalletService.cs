@@ -28,11 +28,14 @@ public class WalletService(
     {
         using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        int nextWalletIndex = await GetNextWalletIndexAsync(dbContext);
-        WalletAddress walletAddress = GetWalletAddress(nextWalletIndex);
-        Wallet wallet = CreateWallet(walletAddress.ToBech32(), nextWalletIndex, airdropAddress);
+        Wallet wallet = CreateWalletWithoutAddress(airdropAddress);
 
         dbContext.Wallets.Add(wallet);
+        await dbContext.SaveChangesAsync();
+
+        WalletAddress walletAddress = GetWalletAddress(wallet.Id);
+        wallet.Address = walletAddress.ToBech32();
+
         await dbContext.SaveChangesAsync();
 
         return wallet;
@@ -47,24 +50,18 @@ public class WalletService(
     public async Task<PrivateKey?> GetPrivateKeyByAddressAsync(string address)
     {
         Wallet? wallet = await GetWalletAsync(address);
-        return wallet?.Index == null ? null : GetPaymentPrivateKey(wallet.Index);
+        return wallet is null ? null : GetPaymentPrivateKey(wallet.Id);
     }
 
-    private static async Task<int> GetNextWalletIndexAsync(WalletDbContext dbContext)
+    private static Wallet CreateWalletWithoutAddress(string? airdropAddress)
     {
-        int lastWalletIndex = await dbContext.Wallets
-            .Select(wallet => wallet.Index)
-            .OrderByDescending(index => index)
-            .FirstOrDefaultAsync();
-
-        return lastWalletIndex + 1;
-    }
-
-    private static Wallet CreateWallet(string walletAddress, int walletIndex, string? airdropAddress)
-    {
-        return new Wallet(walletAddress, walletIndex)
+        return new Wallet()
         {
-            AirdropAddress = airdropAddress
+            Address = null!,
+            AirdropAddress = airdropAddress,
+            Status = UploadStatus.Waiting,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
     }
 }

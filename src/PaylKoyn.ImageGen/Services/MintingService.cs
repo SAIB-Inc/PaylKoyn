@@ -8,11 +8,14 @@ using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using Chrysalis.Tx.Extensions;
 using Chrysalis.Tx.Models;
 using Chrysalis.Tx.Models.Cbor;
+using Chrysalis.Wallet.Models.Keys;
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models.Template;
 using PaylKoyn.Data.Responses;
 using PaylKoyn.Data.Services;
+using PaylKoyn.Data.Utils;
 using PaylKoyn.ImageGen.Data;
+using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;
 
 namespace PaylKoyn.ImageGen.Services;
 
@@ -45,50 +48,50 @@ public class MintingService(
     private readonly ulong _invalidHereafter = configuration.GetValue<ulong?>("Minting:InvalidHereafter")
         ?? throw new ArgumentNullException("Invalid hereafter is not configured");
 
-    public async Task<MintRequest> WaitForPaymentAsync(string requestId, ulong requiredAmount)
+    public async Task<MintRequest> WaitForPaymentAsync(int id, ulong requiredAmount)
     {
         using MintDbContext dbContext = dbContextFactory.CreateDbContext();
-        MintRequest mintRequest = await GetMintRequestAsync(dbContext, requestId);
+        MintRequest mintRequest = await GetMintRequestAsync(dbContext, id);
 
-        ValidateRequestStatus(mintRequest, MintStatus.Waiting, requestId);
+        ValidateRequestStatus(mintRequest, MintStatus.Waiting, id);
 
         Stopwatch stopwatch = Stopwatch.StartNew();
         while (stopwatch.Elapsed < _paymentExpirationTime)
         {
-            (bool IsReceived, ulong ReceivedAmount) = await CheckForPaymentAsync(requestId, requiredAmount);
+            (bool IsReceived, ulong ReceivedAmount) = await CheckForPaymentAsync(mintRequest.Address!, requiredAmount);
             if (IsReceived)
             {
                 return await ProcessPaymentReceivedAsync(dbContext, mintRequest);
             }
 
-            LogPaymentStatus(requestId, requiredAmount, ReceivedAmount);
+            LogPaymentStatus(id, requiredAmount, ReceivedAmount);
             await Task.Delay(_utxoCheckInterval);
         }
 
-        return await HandlePaymentTimeoutAsync(dbContext, mintRequest, requestId);
+        return await HandlePaymentTimeoutAsync(dbContext, mintRequest, id);
     }
 
-    public async Task<MintRequest> RequestImageUploadAsync(string requestId)
+    public async Task<MintRequest> RequestImageUploadAsync(int id)
     {
         using MintDbContext dbContext = dbContextFactory.CreateDbContext();
-        MintRequest mintRequest = await GetMintRequestAsync(dbContext, requestId);
+        MintRequest mintRequest = await GetMintRequestAsync(dbContext, id);
 
-        ValidateRequestStatus(mintRequest, MintStatus.Paid, requestId);
+        ValidateRequestStatus(mintRequest, MintStatus.Paid, id);
 
         string uploadRequestId = await RequestUploadSlotAsync(mintRequest.UserAddress);
         ulong uploadFee = await CalculateUploadFeeAsync(mintRequest.Image!.Length);
 
-        await SendUploadPaymentAsync(requestId, uploadRequestId, uploadFee);
+        await SendUploadPaymentAsync(mintRequest.Address!, uploadRequestId, uploadFee);
 
         return await UpdateRequestWithUploadInfoAsync(dbContext, mintRequest, uploadRequestId, uploadFee);
     }
 
-    public async Task<MintRequest> UploadImageAsync(string requestId)
+    public async Task<MintRequest> UploadImageAsync(int id)
     {
         using MintDbContext dbContext = dbContextFactory.CreateDbContext();
-        MintRequest mintRequest = await GetMintRequestAsync(dbContext, requestId);
+        MintRequest mintRequest = await GetMintRequestAsync(dbContext, id);
 
-        ValidateRequestStatus(mintRequest, MintStatus.Processing, requestId);
+        ValidateRequestStatus(mintRequest, MintStatus.Processing, id);
 
         try
         {
@@ -97,13 +100,13 @@ public class MintingService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to upload image for request ID: {Id}", requestId);
+            logger.LogError(ex, "Failed to upload image for request ID: {Id}", id);
             return await UpdateRequestStatusAsync(dbContext, mintRequest);
         }
     }
 
     public async Task<MintRequest> MintNftAsync(
-        string requestId,
+        int id,
         string policyId,
         string assetName,
         string asciiAssetName,
@@ -111,9 +114,9 @@ public class MintingService(
     )
     {
         using MintDbContext dbContext = dbContextFactory.CreateDbContext();
-        MintRequest mintRequest = await GetMintRequestAsync(dbContext, requestId);
+        MintRequest mintRequest = await GetMintRequestAsync(dbContext, id);
 
-        ValidateRequestStatus(mintRequest, MintStatus.Uploaded, requestId);
+        ValidateRequestStatus(mintRequest, MintStatus.Uploaded, id);
 
         Metadata metadata = CreateNftMetadata(
             policyId,
@@ -125,12 +128,12 @@ public class MintingService(
 
         try
         {
-            string txHash = await ExecuteMintTransactionAsync(requestId, rewardAddress, metadata, assetName);
+            string txHash = await ExecuteMintTransactionAsync(mintRequest, rewardAddress, metadata, assetName);
             return await UpdateRequestAfterMintingAsync(dbContext, mintRequest, assetName, policyId, txHash);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to mint NFT for request ID: {Id}", requestId);
+            logger.LogError(ex, "Failed to mint NFT for request ID: {Id}", id);
             return await UpdateRequestStatusAsync(dbContext, mintRequest);
         }
     }
@@ -189,16 +192,16 @@ public class MintingService(
         }
     }
 
-    private static async Task<MintRequest> GetMintRequestAsync(MintDbContext dbContext, string requestId)
+    private static async Task<MintRequest> GetMintRequestAsync(MintDbContext dbContext, int id)
     {
-        return await dbContext.MintRequests.FirstOrDefaultAsync(m => m.Id == requestId)
-            ?? throw new ArgumentException($"Mint request with ID {requestId} not found.");
+        return await dbContext.MintRequests.FirstOrDefaultAsync(m => m.Id == id)
+            ?? throw new ArgumentException($"Mint request with ID {id} not found.");
     }
 
-    private static void ValidateRequestStatus(MintRequest mintRequest, MintStatus expectedStatus, string requestId)
+    private static void ValidateRequestStatus(MintRequest mintRequest, MintStatus expectedStatus, int id)
     {
         if (mintRequest.Status != expectedStatus)
-            throw new InvalidOperationException($"Mint request with ID {requestId} is not in {expectedStatus} status. Current status: {mintRequest.Status}");
+            throw new InvalidOperationException($"Mint request with ID {id} is not in {expectedStatus} status. Current status: {mintRequest.Status}");
     }
 
     private async Task<(bool IsReceived, ulong ReceivedAmount)> CheckForPaymentAsync(string requestId, ulong requiredAmount)
@@ -227,10 +230,10 @@ public class MintingService(
         return mintRequest;
     }
 
-    private async Task<MintRequest> HandlePaymentTimeoutAsync(MintDbContext dbContext, MintRequest mintRequest, string requestId)
+    private async Task<MintRequest> HandlePaymentTimeoutAsync(MintDbContext dbContext, MintRequest mintRequest, int id)
     {
         logger.LogWarning("Payment for request ID: {Id} not received within the expiration time of {ExpirationTime} minutes.",
-            requestId, _paymentExpirationTime.TotalMinutes);
+            id, _paymentExpirationTime.TotalMinutes);
 
         mintRequest.Status = MintStatus.Failed;
         mintRequest.UpdatedAt = DateTime.UtcNow;
@@ -240,17 +243,17 @@ public class MintingService(
         return mintRequest;
     }
 
-    private void LogPaymentStatus(string requestId, ulong requiredAmount, ulong receivedAmount)
+    private void LogPaymentStatus(int id, ulong requiredAmount, ulong receivedAmount)
     {
         if (receivedAmount > 0)
         {
             logger.LogWarning("Insufficient payment for request ID: {Id}. Required: {RequiredAmount} lovelace, but received: {ReceivedAmount} lovelace",
-                requestId, requiredAmount, receivedAmount);
+                id, requiredAmount, receivedAmount);
         }
         else
         {
             logger.LogInformation("No UTXOs found for address: {Address}. Retrying in {Interval} seconds...",
-                requestId, _utxoCheckInterval.TotalSeconds);
+                id, _utxoCheckInterval.TotalSeconds);
         }
     }
 
@@ -267,17 +270,17 @@ public class MintingService(
         return transactionService.CalculateFee(imageLength, _uploadRevenueFee, (ulong)protocolParams.MaxTransactionSize!);
     }
 
-    private async Task SendUploadPaymentAsync(string requestId, string uploadRequestId, ulong uploadFee)
+    private async Task SendUploadPaymentAsync(string requestAddress, string uploadAddress, ulong uploadFee)
     {
-        Chrysalis.Wallet.Models.Keys.PrivateKey? privateKey = await walletService.GetPrivateKeyByAddressAsync(requestId);
+        PrivateKey? privateKey = await walletService.GetPrivateKeyByAddressAsync(requestAddress);
         TransactionTemplate<TransferParams> transferTemplate = transactionService.Transfer(cardanoDataProvider);
-        TransferParams transferParams = new(requestId, uploadRequestId, uploadFee);
+        TransferParams transferParams = new(requestAddress, uploadAddress, uploadFee);
 
         Transaction transaction = await transferTemplate(transferParams);
         Transaction signedTransaction = transaction.Sign(privateKey!);
 
         string txHash = await cardanoDataProvider.SubmitTransactionAsync(signedTransaction);
-        logger.LogInformation("Transaction submitted successfully for request ID: {Id}. TxHash: {TxHash}", requestId, txHash);
+        logger.LogInformation("Transaction submitted successfully for request ID: {Id}. TxHash: {TxHash}", requestAddress, txHash);
     }
 
     private async Task<MintRequest> UpdateRequestWithUploadInfoAsync(
@@ -361,17 +364,17 @@ public class MintingService(
     }
 
     private async Task<string> ExecuteMintTransactionAsync(
-        string requestId,
+        MintRequest mintRequest,
         string rewardAddress,
         Metadata metadata,
         string assetName)
     {
         TransactionTemplate<MintNftParams> nftTemplate = transactionTemplateService.MintNftTemplate();
-        Chrysalis.Wallet.Models.Addresses.Address mintingAddress = walletService.GetWalletAddress(_mintingSeed, 0);
+        WalletAddress mintingAddress = walletService.GetWalletAddress(_mintingSeed, 0);
 
         MintNftParams mintNftParams = new(
-            requestId,
-            await GetUserAddressAsync(requestId),
+            mintRequest.Address!,
+            mintRequest.UserAddress,
             rewardAddress,
             mintingAddress.ToBech32(),
             _invalidHereafter,
@@ -380,22 +383,21 @@ public class MintingService(
         );
 
         Transaction transaction = await nftTemplate(mintNftParams);
-        Transaction signedTransaction = await SignTransactionWithBothKeysAsync(transaction, requestId);
+        Transaction signedTransaction = await SignTransactionWithBothKeysAsync(transaction, mintRequest.Address!);
 
         return await cardanoDataProvider.SubmitTransactionAsync(signedTransaction);
     }
 
-    private async Task<string> GetUserAddressAsync(string requestId)
+    private string GetUserAddressAsync(int id)
     {
-        using MintDbContext dbContext = dbContextFactory.CreateDbContext();
-        MintRequest mintRequest = await GetMintRequestAsync(dbContext, requestId);
-        return mintRequest.UserAddress;
+        WalletAddress address = walletService.GetWalletAddress(id);
+        return address.ToBech32();
     }
 
-    private async Task<Transaction> SignTransactionWithBothKeysAsync(Transaction transaction, string requestId)
+    private async Task<Transaction> SignTransactionWithBothKeysAsync(Transaction transaction, string address)
     {
-        Chrysalis.Wallet.Models.Keys.PrivateKey? userPrivateKey = await walletService.GetPrivateKeyByAddressAsync(requestId);
-        Chrysalis.Wallet.Models.Keys.PrivateKey mintingPrivateKey = walletService.GetPaymentPrivateKey(_mintingSeed, 0);
+        PrivateKey? userPrivateKey = await walletService.GetPrivateKeyByAddressAsync(address);
+        PrivateKey mintingPrivateKey = walletService.GetPaymentPrivateKey(_mintingSeed, 0);
 
         Transaction signedByUser = transaction.Sign(userPrivateKey!);
         return signedByUser.Sign(mintingPrivateKey);

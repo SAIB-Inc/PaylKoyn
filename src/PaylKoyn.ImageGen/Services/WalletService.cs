@@ -29,13 +29,20 @@ public class WalletService(
 
     public async Task<MintRequest> GenerateMintRequestAsync(string requesterAddress)
     {
-        using MintDbContext dbContext = dbContextFactory.CreateDbContext();
+        using var dbContext = dbContextFactory.CreateDbContext();
 
-        int nextWalletIndex = await GetNextWalletIndexAsync(dbContext);
-        WalletAddress walletAddress = GetWalletAddress(nextWalletIndex);
-        MintRequest mintRequest = CreateMintRequest(walletAddress.ToBech32(), nextWalletIndex, requesterAddress);
+        // Step 1: Create mint request with temporary null address
+        var mintRequest = CreateMintRequestWithoutAddress(requesterAddress);
 
+        // Step 2: Save to get auto-generated ID
         dbContext.MintRequests.Add(mintRequest);
+        await dbContext.SaveChangesAsync();
+
+        // Step 3: Generate address using the auto-generated ID as wallet index
+        var walletAddress = GetWalletAddress(mintRequest.Id);
+        mintRequest.Address = walletAddress.ToBech32();
+
+        // Step 4: Update with the generated address
         await dbContext.SaveChangesAsync();
 
         return mintRequest;
@@ -43,46 +50,47 @@ public class WalletService(
 
     public async Task<MintRequest?> GetRequestAsync(string requestId)
     {
-        using MintDbContext dbContext = dbContextFactory.CreateDbContext();
-        return await dbContext.MintRequests.FirstOrDefaultAsync(request => request.Id == requestId);
+        using var dbContext = dbContextFactory.CreateDbContext();
+        return await dbContext.MintRequests.FirstOrDefaultAsync(request => request.Id.ToString() == requestId);
+    }
+
+    public async Task<MintRequest?> GetRequestByAddressAsync(string address)
+    {
+        using var dbContext = dbContextFactory.CreateDbContext();
+        return await dbContext.MintRequests.FirstOrDefaultAsync(request => request.Address == address);
     }
 
     public async Task<PrivateKey?> GetPrivateKeyByAddressAsync(string address)
     {
-        MintRequest? request = await GetRequestAsync(address);
-        return request?.WalletIndex == null ? null : GetPaymentPrivateKey(request.WalletIndex);
+        var request = await GetRequestByAddressAsync(address);
+        return request is null ? null : GetPaymentPrivateKey(request.Id);
     }
 
-    private static async Task<int> GetNextWalletIndexAsync(MintDbContext dbContext)
+    public PrivateKey? GetPrivateKeyById(int id)
     {
-        int lastWalletIndex = await dbContext.MintRequests
-            .Select(request => request.WalletIndex)
-            .OrderByDescending(index => index)
-            .FirstOrDefaultAsync();
-
-        return lastWalletIndex + 1;
+        return GetPaymentPrivateKey(id);
     }
 
-    private static MintRequest CreateMintRequest(string walletAddress, int walletIndex, string requesterAddress)
+    private static MintRequest CreateMintRequestWithoutAddress(string requesterAddress)
     {
-        DateTime now = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
 
         return new MintRequest(
-            Id: walletAddress,
-            WalletIndex: walletIndex,
+            Address: null, // Will be set after getting auto-generated ID
+            WalletIndex: 0, // Will be same as Id
             UserAddress: requesterAddress,
-            NftNumber: null,
-            UploadPaymentAmount: 0,
             UploadPaymentAddress: null,
-            AdaFsId: null,
-            NftMetadata: null,
-            Image: null,
-            AssetName: null,
+            UploadPaymentAmount: 0,
             PolicyId: null,
+            AssetName: null,
+            NftMetadata: null,
+            AdaFsId: null,
             MintTxHash: null,
-            Traits: null,
             AirdropTxHash: null,
+            Traits: null,
+            Image: null,
             Status: MintStatus.Waiting,
+            NftNumber: null,
             CreatedAt: now,
             UpdatedAt: now
         );

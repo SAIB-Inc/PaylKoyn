@@ -22,12 +22,12 @@ public record TxStatus(byte[] TxRaw, bool IsSent, bool IsConfirmed)
     public bool IsConfirmed { get; set; } = IsConfirmed;
 }
 
-public record Wallet(string Address, int Index, string? AdaFsId = null)
+public record Wallet
 {
-    public string Address { get; init; } = Address;
-    public int Index { get; init; } = Index;
+    public int Id { get; set; }
+    public string? Address { get; set; } = null;
     public string? AirdropAddress { get; set; } = null;
-    public string? AdaFsId { get; set; } = AdaFsId;
+    public string? AdaFsId { get; set; } = null;
     public string? AirdropTxHash { get; set; } = null;
     public string? TransactionsRaw { get; set; } = null;
     public int FileSize { get; set; } = 0;

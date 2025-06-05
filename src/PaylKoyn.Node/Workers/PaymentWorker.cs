@@ -32,7 +32,7 @@ public class PaymentWorker(
                 }
 
                 Task<Wallet?>[] tasks = [.. pendingPayments.Select(request =>
-                    fileService.WaitForPaymentAsync(request.Address)
+                    fileService.WaitForPaymentAsync(request.Address!)
                 )];
 
                 await Task.WhenAll(tasks);

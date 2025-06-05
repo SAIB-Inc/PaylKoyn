@@ -15,6 +15,7 @@ public class MintDbContext(DbContextOptions Options) : DbContext(Options)
         modelBuilder.Entity<MintRequest>(e =>
         {
             e.HasKey(w => w.Id);
+            e.Property(e => e.Id).ValueGeneratedOnAdd();
             e.Property(w => w.NftNumber).IsRequired(false);
             e.HasIndex(w => w.NftNumber).IsUnique();
         });

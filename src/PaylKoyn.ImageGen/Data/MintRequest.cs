@@ -14,7 +14,7 @@ public enum MintStatus
 }
 
 public record MintRequest(
-    string Id,
+    string? Address,
     int WalletIndex,
     string UserAddress,
     string? UploadPaymentAddress,
@@ -33,7 +33,8 @@ public record MintRequest(
     DateTime UpdatedAt
 )
 {
-    public string Id { get; init; } = Id;
+    public int Id { get; init; }
+    public string? Address { get; set; } = Address;
     public int WalletIndex { get; init; } = WalletIndex;
     public string UserAddress { get; init; } = UserAddress;
     public string? UploadPaymentAddress { get; set; } = UploadPaymentAddress;

@@ -13,7 +13,9 @@ public class WalletDbContext(DbContextOptions Options) : DbContext(Options)
 
         modelBuilder.Entity<Wallet>(e =>
         {
-            e.HasKey(w => w.Address);
+            e.HasKey(e => e.Id);
+            e.Property(e => e.Id).ValueGeneratedOnAdd();
+            e.HasIndex(e => e.Address);
         });
     }
 }
