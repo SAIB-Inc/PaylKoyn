@@ -21,7 +21,7 @@ public class PaymentWorker(
 
                 List<Wallet> pendingPayments = await dbContext.Wallets
                     .OrderBy(p => p.UpdatedAt)
-                    .Where(p => p.Status == UploadStatus.Pending)
+                    .Where(p => p.Status == UploadStatus.Waiting)
                     .Take(5)
                     .ToListAsync(stoppingToken);
 

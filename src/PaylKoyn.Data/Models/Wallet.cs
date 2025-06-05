@@ -5,10 +5,12 @@ namespace PaylKoyn.Data.Models;
 
 public enum UploadStatus
 {
-    Pending,
-    PaymentReceived,
-    QueudForSubmission,
-    Completed,
+    Waiting,
+    Paid,
+    Queued,
+    Uploaded,
+    RefundRequested,
+    Refunded,
     Failed
 }
 
@@ -26,7 +28,7 @@ public record Wallet(string Address, int Index, string? AdaFsId = null) // ← R
     public string? AdaFsId { get; set; } = AdaFsId;
     public string? TransactionsRaw { get; set; } = null;
     public int FileSize { get; set; } = 0;
-    public UploadStatus Status { get; set; } = UploadStatus.Pending;
+    public UploadStatus Status { get; set; } = UploadStatus.Waiting;
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
