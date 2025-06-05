@@ -48,7 +48,7 @@ public partial class NftMintWorker(
                 }
 
                 Task<MintRequest>[] tasks = [.. pendingMints.Select(request => {
-                    string asciiAssetName = $"{_nftBaseName} #{request.NftNumber}";
+                    string asciiAssetName = $"{_nftBaseName} #{request.NftNumber.ToString()!.PadLeft(4, '0')}";
                     string cleanAsciiAssetName = AlphaNumericRegex().Replace(asciiAssetName, "");
                     string assetName = Convert.ToHexString(Encoding.UTF8.GetBytes(cleanAsciiAssetName));
                     return mintingService.MintNftAsync(request.Id, policyId, assetName, asciiAssetName, _rewardAddress);
