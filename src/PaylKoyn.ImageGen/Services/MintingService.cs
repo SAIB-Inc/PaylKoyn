@@ -75,7 +75,7 @@ public class MintingService(
 
         ValidateRequestStatus(mintRequest, MintStatus.Paid, requestId);
 
-        string uploadRequestId = await RequestUploadSlotAsync();
+        string uploadRequestId = await RequestUploadSlotAsync(mintRequest.UserAddress);
         ulong uploadFee = await CalculateUploadFeeAsync(mintRequest.Image!.Length);
 
         await SendUploadPaymentAsync(requestId, uploadRequestId, uploadFee);
@@ -254,9 +254,9 @@ public class MintingService(
         }
     }
 
-    private async Task<string> RequestUploadSlotAsync()
+    private async Task<string> RequestUploadSlotAsync(string airdropAddress)
     {
-        HttpResponseMessage response = await _nodeClient.PostAsync("upload/request", null);
+        HttpResponseMessage response = await _nodeClient.PostAsync($"upload/request/{airdropAddress}", null);
         UploadRequestResponse? uploadResponse = await response.Content.ReadFromJsonAsync<UploadRequestResponse>();
         return uploadResponse!.Id;
     }

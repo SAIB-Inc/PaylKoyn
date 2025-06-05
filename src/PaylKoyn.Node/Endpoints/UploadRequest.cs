@@ -1,6 +1,5 @@
 using FastEndpoints;
 using PaylKoyn.Data.Models;
-using PaylKoyn.Data.Services;
 using PaylKoyn.Data.Responses;
 using PaylKoyn.Node.Services;
 
@@ -10,12 +9,14 @@ public class UploadRequest(WalletService walletService) : EndpointWithoutRequest
 {
     public override void Configure()
     {
-        Post("/upload/request");
+        Post("/upload/request/{address}");
         AllowAnonymous();
     }
 
     public override async Task HandleAsync(CancellationToken ct)
     {
+        string? airdropAddress = Route<string>("address");
+
         Wallet wallet = await walletService.GenerateWalletAsync();
         string address = wallet.Address;
 

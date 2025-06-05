@@ -9,6 +9,7 @@ public enum UploadStatus
     Paid,
     Queued,
     Uploaded,
+    Airdropped,
     RefundRequested,
     Refunded,
     Failed
@@ -21,11 +22,13 @@ public record TxStatus(byte[] TxRaw, bool IsSent, bool IsConfirmed)
     public bool IsConfirmed { get; set; } = IsConfirmed;
 }
 
-public record Wallet(string Address, int Index, string? AdaFsId = null) // ← Remove Transactions from constructor
+public record Wallet(string Address, int Index, string? AdaFsId = null)
 {
     public string Address { get; init; } = Address;
     public int Index { get; init; } = Index;
+    public string? AirdropAddress { get; set; } = null;
     public string? AdaFsId { get; set; } = AdaFsId;
+    public string? AirdropTxHash { get; set; } = null;
     public string? TransactionsRaw { get; set; } = null;
     public int FileSize { get; set; } = 0;
     public UploadStatus Status { get; set; } = UploadStatus.Waiting;

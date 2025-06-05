@@ -1,16 +1,15 @@
 using Chrysalis.Wallet.Models.Keys;
 using Microsoft.EntityFrameworkCore;
+using PaylKoyn.Data.Models;
 using PaylKoyn.Data.Services;
-using PaylKoyn.ImageGen.Data;
-using PaylKoyn.ImageGen.Services;
-using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;
+using PaylKoyn.Data.Utils;
+using PaylKoyn.Node.Data;
 
-namespace PaylKoyn.ImageGen.Workers;
+namespace PaylKoyn.Node.Workers;
 
 public partial class AirdropWorker(
-    IDbContextFactory<MintDbContext> dbContextFactory,
+    IDbContextFactory<WalletDbContext> dbContextFactory,
     IConfiguration configuration,
-    WalletService walletService,
     AssetTransferService assetTransferService,
     ILogger<AirdropWorker> logger
 ) : BackgroundService
@@ -32,22 +31,23 @@ public partial class AirdropWorker(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        WalletAddress airdropAddress = walletService.GetWalletAddress(_airdropSeed, AirdropWalletIndex);
+        Chrysalis.Wallet.Models.Enums.NetworkType networkType = WalletUtils.DetermineNetworkType(configuration);
+        Chrysalis.Wallet.Models.Addresses.Address airdropAddress = WalletUtils.GetWalletAddress(_airdropSeed, AirdropWalletIndex, networkType);
         string airdropAddressBech32 = airdropAddress.ToBech32();
-        PrivateKey privateKey = walletService.GetPaymentPrivateKey(_airdropSeed, AirdropWalletIndex);
+        PrivateKey privateKey = WalletUtils.GetPaymentPrivateKey(_airdropSeed, AirdropWalletIndex);
         Dictionary<string, Dictionary<string, ulong>> assetMap =
-            AssetTransferService.CreateAssetMap(_policyId, _assetName, _airdropAmount, FixedLovelaceAmount);
+             AssetTransferService.CreateAssetMap(_policyId, _assetName, _airdropAmount, FixedLovelaceAmount);
 
-        logger.LogInformation("Airdrop Worker started. Address: {Address}", airdropAddressBech32);
+        logger.LogInformation("Node Airdrop Worker started. Address: {Address}", airdropAddressBech32);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                using MintDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
+                using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                MintRequest? pendingAirdrop = await GetNextPendingAirdropAsync(dbContext, stoppingToken);
-                if (pendingAirdrop is null)
+                Wallet? pendingWallet = await GetNextPendingAirdropAsync(dbContext, stoppingToken);
+                if (pendingWallet is null)
                 {
                     await Task.Delay(NormalRetryDelayMs, stoppingToken);
                     continue;
@@ -62,7 +62,18 @@ public partial class AirdropWorker(
                     continue;
                 }
 
-                await ExecuteAirdropAsync(dbContext, pendingAirdrop, airdropAddressBech32, privateKey, assetMap, stoppingToken);
+                if (pendingWallet.AirdropAddress is null)
+                {
+                    logger.LogWarning("Pending wallet {Address} does not have an airdrop address set.", pendingWallet.Address);
+                    pendingWallet.UpdatedAt = DateTime.UtcNow;
+                    pendingWallet.Status = UploadStatus.Airdropped;
+                    dbContext.Wallets.Update(pendingWallet);
+                    await dbContext.SaveChangesAsync(stoppingToken);
+
+                    continue;
+                }
+
+                await ExecuteAirdropAsync(dbContext, pendingWallet, airdropAddressBech32, privateKey, assetMap, stoppingToken);
             }
             catch (OperationCanceledException)
             {
@@ -75,17 +86,17 @@ public partial class AirdropWorker(
         }
     }
 
-    private static async Task<MintRequest?> GetNextPendingAirdropAsync(MintDbContext dbContext, CancellationToken stoppingToken)
+    private static async Task<Wallet?> GetNextPendingAirdropAsync(WalletDbContext dbContext, CancellationToken stoppingToken)
     {
-        return await dbContext.MintRequests
-            .Where(request => request.Status == MintStatus.NftSent)
-            .OrderBy(request => request.UpdatedAt)
+        return await dbContext.Wallets
+            .Where(wallet => wallet.Status == UploadStatus.Uploaded)
+            .OrderBy(wallet => wallet.UpdatedAt)
             .FirstOrDefaultAsync(stoppingToken);
     }
 
     private async Task ExecuteAirdropAsync(
-        MintDbContext dbContext,
-        MintRequest pendingAirdrop,
+        WalletDbContext dbContext,
+        Wallet pendingWallet,
         string airdropAddress,
         PrivateKey privateKey,
         Dictionary<string, Dictionary<string, ulong>> assetMap,
@@ -95,46 +106,45 @@ public partial class AirdropWorker(
         {
             string txHash = await assetTransferService.SendAssetTransferAsync(
                 airdropAddress,
-                pendingAirdrop.UserAddress,
+                pendingWallet.AirdropAddress!,
                 assetMap,
                 privateKey);
 
-            await UpdateRequestAsCompletedAsync(dbContext, pendingAirdrop, txHash, stoppingToken);
+            await UpdateWalletAsCompletedAsync(dbContext, pendingWallet, txHash, stoppingToken);
 
-            logger.LogInformation("Airdrop completed for request {RequestId}. TxHash: {TxHash}",
-                pendingAirdrop.Id, txHash);
+            logger.LogInformation("Airdrop completed for wallet {Address}. TxHash: {TxHash}",
+                pendingWallet.Address, txHash);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Airdrop failed for request {RequestId} to address {Address}",
-                pendingAirdrop.Id, pendingAirdrop.UserAddress);
+            logger.LogError(ex, "Airdrop failed for wallet {Address}", pendingWallet.Address);
 
-            await UpdateRequestTimestampAsync(dbContext, pendingAirdrop, stoppingToken);
+            await UpdateWalletTimestampAsync(dbContext, pendingWallet, stoppingToken);
             throw;
         }
     }
 
-    private static async Task UpdateRequestAsCompletedAsync(
-        MintDbContext dbContext,
-        MintRequest request,
+    private static async Task UpdateWalletAsCompletedAsync(
+        WalletDbContext dbContext,
+        Wallet wallet,
         string txHash,
         CancellationToken stoppingToken)
     {
-        request.Status = MintStatus.TokenSent;
-        request.AirdropTxHash = txHash;
-        request.UpdatedAt = DateTime.UtcNow;
+        wallet.Status = UploadStatus.Airdropped;
+        wallet.AirdropTxHash = txHash;
+        wallet.UpdatedAt = DateTime.UtcNow;
 
-        dbContext.MintRequests.Update(request);
+        dbContext.Wallets.Update(wallet);
         await dbContext.SaveChangesAsync(stoppingToken);
     }
 
-    private static async Task UpdateRequestTimestampAsync(
-        MintDbContext dbContext,
-        MintRequest request,
+    private static async Task UpdateWalletTimestampAsync(
+        WalletDbContext dbContext,
+        Wallet wallet,
         CancellationToken stoppingToken)
     {
-        request.UpdatedAt = DateTime.UtcNow;
-        dbContext.MintRequests.Update(request);
+        wallet.UpdatedAt = DateTime.UtcNow;
+        dbContext.Wallets.Update(wallet);
         await dbContext.SaveChangesAsync(stoppingToken);
     }
 }

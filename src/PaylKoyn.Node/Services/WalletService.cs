@@ -1,8 +1,8 @@
 using Chrysalis.Wallet.Models.Enums;
 using Chrysalis.Wallet.Models.Keys;
-using Chrysalis.Wallet.Words;
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models;
+using PaylKoyn.Data.Utils;
 using PaylKoyn.Node.Data;
 using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;
 
@@ -13,65 +13,25 @@ public class WalletService(
     IDbContextFactory<WalletDbContext> dbContextFactory
 )
 {
-    private readonly string _seed = configuration["Seed"] ?? throw new ArgumentNullException("Seed is not configured");
-    private readonly NetworkType _networkType = int.Parse(configuration["CardanoNodeConnection:NetworkMagic"] ?? "2") switch
+    private readonly string _defaultSeed = configuration["Seed"]
+        ?? throw new ArgumentNullException("Seed is not configured");
+    private readonly NetworkType _networkType = WalletUtils.DetermineNetworkType(
+        int.Parse(configuration["CardanoNodeConnection:NetworkMagic"] ?? "2"));
+
+    public WalletAddress GetWalletAddress(int walletIndex = 0) =>
+        WalletUtils.GetWalletAddress(_defaultSeed, walletIndex, _networkType);
+
+    public PrivateKey GetPaymentPrivateKey(int walletIndex = 0) =>
+        WalletUtils.GetPaymentPrivateKey(_defaultSeed, walletIndex);
+
+    public async Task<Wallet> GenerateWalletAsync(string? airdropAddress = null)
     {
-        764824073 => NetworkType.Mainnet,
-        _ => NetworkType.Testnet
-    };
+        using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync();
 
-    public WalletAddress GetWalletAddress(int index = 0)
-    {
-        Mnemonic mnemonic = Mnemonic.Restore(_seed, English.Words);
-        PrivateKey accountKey = mnemonic
-            .GetRootKey()
-            .Derive(PurposeType.Shelley, DerivationType.HARD)
-            .Derive(CoinType.Ada, DerivationType.HARD)
-            .Derive(0, DerivationType.HARD);
-        PrivateKey paymentPrivateKey = accountKey
-            .Derive(RoleType.ExternalChain)
-            .Derive(index);
-        PrivateKey stakePrivateKey = accountKey
-            .Derive(RoleType.Staking)
-            .Derive(0);
+        int nextWalletIndex = await GetNextWalletIndexAsync(dbContext);
+        WalletAddress walletAddress = GetWalletAddress(nextWalletIndex);
+        Wallet wallet = CreateWallet(walletAddress.ToBech32(), nextWalletIndex, airdropAddress);
 
-        PublicKey pkPub = paymentPrivateKey.GetPublicKey();
-        PublicKey skPub = stakePrivateKey.GetPublicKey();
-
-        WalletAddress address = WalletAddress.FromPublicKeys(_networkType, AddressType.Base, pkPub, skPub);
-
-        return address;
-    }
-
-    public PrivateKey GetPaymentPrivateKey(int index = 0)
-    {
-        Mnemonic mnemonic = Mnemonic.Restore(_seed, English.Words);
-        PrivateKey accountKey = mnemonic
-            .GetRootKey()
-            .Derive(PurposeType.Shelley, DerivationType.HARD)
-            .Derive(CoinType.Ada, DerivationType.HARD)
-            .Derive(0, DerivationType.HARD);
-        PrivateKey paymentPrivateKey = accountKey
-            .Derive(RoleType.ExternalChain)
-            .Derive(index);
-
-        return paymentPrivateKey;
-    }
-
-    public async Task<Wallet> GenerateWalletAsync()
-    {
-        using WalletDbContext dbContext = dbContextFactory.CreateDbContext();
-
-        int index = await dbContext.Wallets
-            .Select(w => w.Index)
-            .OrderByDescending(i => i)
-            .FirstOrDefaultAsync() + 1;
-
-        WalletAddress address = GetWalletAddress(index);
-        string addressBech32 = address.ToBech32();
-        Wallet wallet = new(addressBech32, index);
-
-        // Save the wallet to the database
         dbContext.Wallets.Add(wallet);
         await dbContext.SaveChangesAsync();
 
@@ -81,15 +41,30 @@ public class WalletService(
     public async Task<Wallet?> GetWalletAsync(string address)
     {
         using WalletDbContext dbContext = dbContextFactory.CreateDbContext();
-        return await dbContext.Wallets.FirstOrDefaultAsync(w => w.Address == address);
+        return await dbContext.Wallets.FirstOrDefaultAsync(wallet => wallet.Address == address);
     }
 
     public async Task<PrivateKey?> GetPrivateKeyByAddressAsync(string address)
     {
         Wallet? wallet = await GetWalletAsync(address);
-        if (wallet == null)
-            return null;
+        return wallet?.Index == null ? null : GetPaymentPrivateKey(wallet.Index);
+    }
 
-        return GetPaymentPrivateKey(wallet.Index);
+    private static async Task<int> GetNextWalletIndexAsync(WalletDbContext dbContext)
+    {
+        int lastWalletIndex = await dbContext.Wallets
+            .Select(wallet => wallet.Index)
+            .OrderByDescending(index => index)
+            .FirstOrDefaultAsync();
+
+        return lastWalletIndex + 1;
+    }
+
+    private static Wallet CreateWallet(string walletAddress, int walletIndex, string? airdropAddress)
+    {
+        return new Wallet(walletAddress, walletIndex)
+        {
+            AirdropAddress = airdropAddress
+        };
     }
 }
