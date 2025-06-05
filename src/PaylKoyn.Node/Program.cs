@@ -21,6 +21,7 @@ builder.Services.Configure<KestrelServerOptions>(options =>
 
 builder.Services.AddHostedService<SubmitWorker>();
 builder.Services.AddHostedService<PaymentWorker>();
+builder.Services.AddHostedService<AirdropWorker>();
 
 builder.Services.AddOpenApi();
 builder.Services.AddFastEndpoints(o => o.IncludeAbstractValidators = true);
@@ -33,6 +34,7 @@ builder.Services.AddSingleton<WalletService>();
 builder.Services.AddSingleton<FileService>();
 builder.Services.AddSingleton<TransactionService>();
 builder.Services.AddSingleton<FileCacheService>();
+builder.Services.AddSingleton<AssetTransferService>();
 
 WebApplication app = builder.Build();
 

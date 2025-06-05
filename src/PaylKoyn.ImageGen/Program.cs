@@ -18,6 +18,7 @@ builder.Services.AddSingleton<TransactionService>();
 builder.Services.AddSingleton<MintingService>();
 builder.Services.AddSingleton<WalletService>();
 builder.Services.AddSingleton<TransactionTemplateService>();
+builder.Services.AddSingleton<AssetTransferService>();
 
 builder.Services.AddDbContextFactory<MintDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
