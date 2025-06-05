@@ -4,7 +4,7 @@ using PaylKoyn.Data.Models;
 using PaylKoyn.Node.Data;
 using PaylKoyn.Node.Services;
 
-namespace Paylkoyn.Node.Workers;
+namespace PaylKoyn.Node.Workers;
 
 public class PaymentWorker(
     IDbContextFactory<WalletDbContext> dbContextFactory,

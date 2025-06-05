@@ -1,7 +1,7 @@
 using Chrysalis.Wallet.Models.Keys;
 using Chrysalis.Wallet.Words;
 using FastEndpoints;
-using Paylkoyn.ImageGen.Services;
+using PaylKoyn.ImageGen.Services;
 
 namespace PaylKoyn.ImageGen.Endpoints;
 

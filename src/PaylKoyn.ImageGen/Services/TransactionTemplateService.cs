@@ -10,7 +10,7 @@ using Chrysalis.Wallet.Models.Enums;
 using PaylKoyn.ImageGen.Utils;
 using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;
 
-namespace Paylkoyn.ImageGen.Services;
+namespace PaylKoyn.ImageGen.Services;
 
 
 public record MintNftParams(

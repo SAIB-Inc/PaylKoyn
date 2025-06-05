@@ -12,7 +12,7 @@ using Chrysalis.Tx.Models;
 using Chrysalis.Tx.Models.Cbor;
 using Chrysalis.Wallet.Models.Keys;
 using Microsoft.EntityFrameworkCore;
-using Paylkoyn.ImageGen.Services;
+using PaylKoyn.ImageGen.Services;
 using PaylKoyn.Data.Models.Template;
 using PaylKoyn.Data.Responses;
 using PaylKoyn.Data.Services;

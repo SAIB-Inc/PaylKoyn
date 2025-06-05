@@ -4,7 +4,7 @@ using Chrysalis.Tx.Providers;
 using FastEndpoints;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
-using Paylkoyn.Node.Workers;
+using PaylKoyn.Node.Workers;
 using PaylKoyn.Data.Extensions;
 using PaylKoyn.Data.Services;
 using PaylKoyn.Node.Data;
