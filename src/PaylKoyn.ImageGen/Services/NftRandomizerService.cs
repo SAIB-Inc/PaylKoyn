@@ -1,6 +1,6 @@
-using Paylkoyn.ImageGen.Utils;
+using PaylKoyn.ImageGen.Utils;
 
-namespace Paylkoyn.ImageGen.Services;
+namespace PaylKoyn.ImageGen.Services;
 
 public record AttributeGroup(string Name, string[] Categories);
 public record NftTrait(int Layer, string Category, string TraitName);

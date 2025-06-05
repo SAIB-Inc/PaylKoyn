@@ -9,7 +9,7 @@ using PaylKoyn.ImageGen.Services;
 using PaylKoyn.ImageGen.Utils;
 using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;
 
-namespace Paylkoyn.ImageGen.Workers;
+namespace PaylKoyn.ImageGen.Workers;
 
 public partial class MintWorker(
     IDbContextFactory<MintDbContext> dbContextFactory,
