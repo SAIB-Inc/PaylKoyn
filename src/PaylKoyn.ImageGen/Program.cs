@@ -1,13 +1,10 @@
-﻿using Chrysalis.Tx.Models;
-using Chrysalis.Tx.Providers;
-using FastEndpoints;
+﻿using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.ImageGen.Services;
 using PaylKoyn.ImageGen.Workers;
 using PaylKoyn.Data.Extensions;
 using PaylKoyn.Data.Services;
 using PaylKoyn.ImageGen.Data;
-using PaylKoyn.ImageGen.Services;
 using Scalar.AspNetCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -21,6 +18,7 @@ builder.Services.AddSingleton<TransactionService>();
 builder.Services.AddSingleton<MintingService>();
 builder.Services.AddSingleton<WalletService>();
 builder.Services.AddSingleton<TransactionTemplateService>();
+builder.Services.AddSingleton<AssetTransferService>();
 
 builder.Services.AddDbContextFactory<MintDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -32,10 +30,11 @@ builder.Services.AddHttpClient("PaylKoynNodeClient", client =>
 });
 
 // Workers
-builder.Services.AddHostedService<MintWorker>();
-builder.Services.AddHostedService<MintPaymentWorker>();
-builder.Services.AddHostedService<FileUploadPaymentWorker>();
-builder.Services.AddHostedService<FileUploadWorker>();
+builder.Services.AddHostedService<NftMintWorker>();
+builder.Services.AddHostedService<NftPaymentWorker>();
+builder.Services.AddHostedService<PreUploadWorker>();
+builder.Services.AddHostedService<UploadWorker>();
+builder.Services.AddHostedService<AirdropWorker>();
 
 WebApplication app = builder.Build();
 

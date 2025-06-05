@@ -27,7 +27,7 @@ public class MintNft(WalletService walletService) : Endpoint<MintNftRequest>
         else
         {
             MintRequest mintRequest = await walletService.GenerateMintRequestAsync(req.UserAddress);
-            await SendAsync(mintRequest.Id, cancellation: ct);
+            await SendAsync(mintRequest.Address, cancellation: ct);
         }
     }
 

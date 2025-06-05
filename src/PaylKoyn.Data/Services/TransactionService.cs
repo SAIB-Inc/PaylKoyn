@@ -11,6 +11,7 @@ using Chrysalis.Tx.Models.Cbor;
 using Chrysalis.Tx.Utils;
 using Chrysalis.Wallet.Utils;
 using PaylKoyn.Data.Models.Template;
+using PaylKoyn.Data.Utils;
 using Address = Chrysalis.Wallet.Models.Addresses.Address;
 using CborAddress = Chrysalis.Cbor.Types.Cardano.Core.Common.Address;
 
@@ -26,6 +27,20 @@ public class TransactionService()
             {
                 options.To = "to";
                 options.Amount = new Lovelace(parameters.Amount);
+            })
+            .Build();
+
+        return transferTemplate;
+    }
+
+    public TransactionTemplate<MultiAssetTransferParams> MultiAssetTransfer(ICardanoDataProvider provider)
+    {
+        TransactionTemplate<MultiAssetTransferParams> transferTemplate = TransactionTemplateBuilder<MultiAssetTransferParams>.Create(provider)
+            .AddOutput((options, parameters) =>
+            {
+                LovelaceWithMultiAsset multiAsset = AssetUtils.ConvertToLovelaceWithMultiAsset(parameters.Assets);
+                options.To = "to";
+                options.Amount = multiAsset;
             })
             .Build();
 

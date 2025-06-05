@@ -5,14 +5,11 @@ using PaylKoyn.ImageGen.Services;
 
 namespace PaylKoyn.ImageGen.Workers;
 
-public class MintPaymentWorker(
+public class UploadWorker(
     IDbContextFactory<MintDbContext> dbContextFactory,
-    IConfiguration configuration,
     MintingService mintingService
 ) : BackgroundService
 {
-    private readonly ulong _mintingFee = configuration.GetValue<ulong>("Minting:MintingFee", 100_000_000UL);
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -21,20 +18,20 @@ public class MintPaymentWorker(
             {
                 using MintDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                List<MintRequest> pendingPayments = await dbContext.MintRequests
+                List<MintRequest> pendingUploads = await dbContext.MintRequests
                     .OrderBy(p => p.UpdatedAt)
-                    .Where(p => p.Status == MintStatus.Pending)
+                    .Where(p => p.Status == MintStatus.Processing)
                     .Take(5)
                     .ToListAsync(stoppingToken);
 
-                if (pendingPayments.Count == 0)
+                if (pendingUploads.Count == 0)
                 {
-                    await Task.Delay(5000, stoppingToken); // Wait 5 seconds
+                    await Task.Delay(5000, stoppingToken);
                     continue;
                 }
 
-                Task<MintRequest>[] tasks = [.. pendingPayments.Select(request =>
-                    mintingService.WaitForPaymentAsync(request.Id, _mintingFee)
+                Task<MintRequest>[] tasks = [.. pendingUploads.Select(request =>
+                    mintingService.UploadImageAsync(request.Id)
                 )];
 
                 await Task.WhenAll(tasks);

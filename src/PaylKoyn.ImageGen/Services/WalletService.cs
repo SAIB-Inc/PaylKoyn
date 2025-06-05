@@ -1,7 +1,7 @@
 using Chrysalis.Wallet.Models.Enums;
 using Chrysalis.Wallet.Models.Keys;
-using Chrysalis.Wallet.Words;
 using Microsoft.EntityFrameworkCore;
+using PaylKoyn.Data.Utils;
 using PaylKoyn.ImageGen.Data;
 using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;
 
@@ -12,126 +12,87 @@ public class WalletService(
     IDbContextFactory<MintDbContext> dbContextFactory
 )
 {
-    private readonly string _seed = configuration.GetValue("Seed", string.Empty);
-    private readonly NetworkType _networkType = configuration.GetValue("CardanoNodeConnection:NetworkMagic", 2) switch
-    {
-        764824073 => NetworkType.Mainnet,
-        _ => NetworkType.Testnet
-    };
+    private readonly string _defaultSeed = configuration.GetValue("Seed", string.Empty);
+    private readonly NetworkType _networkType = WalletUtils.DetermineNetworkType(configuration);
 
-    public WalletAddress GetWalletAddress(string seed, int index = 0)
-    {
-        Mnemonic mnemonic = Mnemonic.Restore(seed, English.Words);
-        PrivateKey accountKey = mnemonic
-            .GetRootKey()
-            .Derive(PurposeType.Shelley, DerivationType.HARD)
-            .Derive(CoinType.Ada, DerivationType.HARD)
-            .Derive(0, DerivationType.HARD);
-        PrivateKey paymentPrivateKey = accountKey
-            .Derive(RoleType.ExternalChain)
-            .Derive(index);
-        PrivateKey stakePrivateKey = accountKey
-            .Derive(RoleType.Staking)
-            .Derive(0);
+    public WalletAddress GetWalletAddress(string seed, int walletIndex = 0) =>
+        WalletUtils.GetWalletAddress(seed, walletIndex, _networkType);
 
-        PublicKey pkPub = paymentPrivateKey.GetPublicKey();
-        PublicKey skPub = stakePrivateKey.GetPublicKey();
+    public WalletAddress GetWalletAddress(int walletIndex = 0) =>
+        GetWalletAddress(_defaultSeed, walletIndex);
 
-        WalletAddress address = WalletAddress.FromPublicKeys(_networkType, AddressType.Base, pkPub, skPub);
+    public PrivateKey GetPaymentPrivateKey(string seed, int walletIndex = 0) =>
+        WalletUtils.GetPaymentPrivateKey(seed, walletIndex);
 
-        return address;
-    }
-
-
-    public PrivateKey GetPaymentPrivateKey(string seed, int index = 0)
-    {
-        Mnemonic mnemonic = Mnemonic.Restore(seed, English.Words);
-        PrivateKey accountKey = mnemonic
-            .GetRootKey()
-            .Derive(PurposeType.Shelley, DerivationType.HARD)
-            .Derive(CoinType.Ada, DerivationType.HARD)
-            .Derive(0, DerivationType.HARD);
-        PrivateKey paymentPrivateKey = accountKey
-            .Derive(RoleType.ExternalChain)
-            .Derive(index);
-
-        return paymentPrivateKey;
-    }
-
-    public WalletAddress GetWalletAddress(int index = 0)
-    {
-        Mnemonic mnemonic = Mnemonic.Restore(_seed, English.Words);
-        PrivateKey accountKey = mnemonic
-            .GetRootKey()
-            .Derive(PurposeType.Shelley, DerivationType.HARD)
-            .Derive(CoinType.Ada, DerivationType.HARD)
-            .Derive(0, DerivationType.HARD);
-        PrivateKey paymentPrivateKey = accountKey
-            .Derive(RoleType.ExternalChain)
-            .Derive(index);
-        PrivateKey stakePrivateKey = accountKey
-            .Derive(RoleType.Staking)
-            .Derive(0);
-
-        PublicKey pkPub = paymentPrivateKey.GetPublicKey();
-        PublicKey skPub = stakePrivateKey.GetPublicKey();
-
-        WalletAddress address = WalletAddress.FromPublicKeys(_networkType, AddressType.Base, pkPub, skPub);
-
-        return address;
-    }
-
-    public PrivateKey GetPaymentPrivateKey(int index = 0)
-    {
-        Mnemonic mnemonic = Mnemonic.Restore(_seed, English.Words);
-        PrivateKey accountKey = mnemonic
-            .GetRootKey()
-            .Derive(PurposeType.Shelley, DerivationType.HARD)
-            .Derive(CoinType.Ada, DerivationType.HARD)
-            .Derive(0, DerivationType.HARD);
-        PrivateKey paymentPrivateKey = accountKey
-            .Derive(RoleType.ExternalChain)
-            .Derive(index);
-
-        return paymentPrivateKey;
-    }
+    public PrivateKey GetPaymentPrivateKey(int walletIndex = 0) =>
+        GetPaymentPrivateKey(_defaultSeed, walletIndex);
 
     public async Task<MintRequest> GenerateMintRequestAsync(string requesterAddress)
     {
-        using MintDbContext dbContext = dbContextFactory.CreateDbContext();
+        using var dbContext = dbContextFactory.CreateDbContext();
 
-        int index = await dbContext.MintRequests
-            .Select(w => w.WalletIndex)
-            .OrderByDescending(i => i)
-            .FirstOrDefaultAsync() + 1;
+        // Step 1: Create mint request with temporary null address
+        var mintRequest = CreateMintRequestWithoutAddress(requesterAddress);
 
-        WalletAddress address = GetWalletAddress(index);
-        string addressBech32 = address.ToBech32();
-
-        MintRequest request = new(
-            addressBech32, index, requesterAddress,
-            null, 0, null, null, null, null, null, null, null,
-            MintStatus.Pending, null, DateTime.UtcNow, DateTime.UtcNow
-        );
-
-        // Save the wallet to the database
-        dbContext.MintRequests.Add(request);
+        // Step 2: Save to get auto-generated ID
+        dbContext.MintRequests.Add(mintRequest);
         await dbContext.SaveChangesAsync();
 
-        return request;
+        // Step 3: Generate address using the auto-generated ID as wallet index
+        var walletAddress = GetWalletAddress(mintRequest.Id);
+        mintRequest.Address = walletAddress.ToBech32();
+
+        // Step 4: Update with the generated address
+        await dbContext.SaveChangesAsync();
+
+        return mintRequest;
     }
 
-    public async Task<MintRequest?> GetRequestAsync(string id)
+    public async Task<MintRequest?> GetRequestAsync(string requestId)
     {
-        using MintDbContext dbContext = dbContextFactory.CreateDbContext();
-        return await dbContext.MintRequests.FirstOrDefaultAsync(w => w.Id == id);
+        using var dbContext = dbContextFactory.CreateDbContext();
+        return await dbContext.MintRequests.FirstOrDefaultAsync(request => request.Id.ToString() == requestId);
+    }
+
+    public async Task<MintRequest?> GetRequestByAddressAsync(string address)
+    {
+        using var dbContext = dbContextFactory.CreateDbContext();
+        return await dbContext.MintRequests.FirstOrDefaultAsync(request => request.Address == address);
     }
 
     public async Task<PrivateKey?> GetPrivateKeyByAddressAsync(string address)
     {
-        MintRequest? request = await GetRequestAsync(address);
-        if (request == null) return null;
+        var request = await GetRequestByAddressAsync(address);
+        return request is null ? null : GetPaymentPrivateKey(request.Id);
+    }
 
-        return GetPaymentPrivateKey(request.WalletIndex);
+    public PrivateKey? GetPrivateKeyById(int id)
+    {
+        return GetPaymentPrivateKey(id);
+    }
+
+    private static MintRequest CreateMintRequestWithoutAddress(string requesterAddress)
+    {
+        var now = DateTime.UtcNow;
+
+        return new MintRequest(
+            Address: null, // Will be set after getting auto-generated ID
+            WalletIndex: 0, // Will be same as Id
+            UserAddress: requesterAddress,
+            UploadPaymentAddress: null,
+            UploadPaymentAmount: 0,
+            PolicyId: null,
+            AssetName: null,
+            NftMetadata: null,
+            AdaFsId: null,
+            MintTxHash: null,
+            AirdropTxHash: null,
+            Traits: null,
+            Image: null,
+            Status: MintStatus.Waiting,
+            NftNumber: null,
+            CreatedAt: now,
+            UpdatedAt: now
+        );
     }
 }

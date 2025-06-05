@@ -5,7 +5,7 @@ using PaylKoyn.ImageGen.Services;
 
 namespace PaylKoyn.ImageGen.Workers;
 
-public class FileUploadWorker(
+public class PreUploadWorker(
     IDbContextFactory<MintDbContext> dbContextFactory,
     MintingService mintingService
 ) : BackgroundService
@@ -18,20 +18,20 @@ public class FileUploadWorker(
             {
                 using MintDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                List<MintRequest> pendingUploads = await dbContext.MintRequests
+                List<MintRequest> pendingUploadPayments = await dbContext.MintRequests
                     .OrderBy(p => p.UpdatedAt)
-                    .Where(p => p.Status == MintStatus.UploadPaymentSent)
-                    .Take(5)
+                    .Where(p => p.Status == MintStatus.Paid)
+                    .Take(3)
                     .ToListAsync(stoppingToken);
 
-                if (pendingUploads.Count == 0)
+                if (pendingUploadPayments.Count == 0)
                 {
                     await Task.Delay(5000, stoppingToken);
                     continue;
                 }
 
-                Task<MintRequest>[] tasks = [.. pendingUploads.Select(request =>
-                    mintingService.UploadImageAsync(request.Id)
+                Task<MintRequest>[] tasks = [.. pendingUploadPayments.Select(request =>
+                    mintingService.RequestImageUploadAsync(request.Id)
                 )];
 
                 await Task.WhenAll(tasks);

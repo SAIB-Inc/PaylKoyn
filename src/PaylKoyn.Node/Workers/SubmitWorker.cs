@@ -21,7 +21,7 @@ public class SubmitWorker(
 
                 List<Wallet> pendingUploads = await dbContext.Wallets
                     .OrderBy(p => p.UpdatedAt)
-                    .Where(p => p.Status == UploadStatus.QueudForSubmission)
+                    .Where(p => p.Status == UploadStatus.Queued)
                     .Where(p => p.TransactionsRaw != null && p.TransactionsRaw != "[]")
                     .Take(3)
                     .ToListAsync(stoppingToken);
@@ -33,7 +33,7 @@ public class SubmitWorker(
                 }
 
                 Task<Wallet>[] tasks = [.. pendingUploads.Select(request =>
-                    fileService.SubmitTransactionsAsync(request.Address)
+                    fileService.SubmitTransactionsAsync(request.Address!)
                 )];
 
                 await Task.WhenAll(tasks);

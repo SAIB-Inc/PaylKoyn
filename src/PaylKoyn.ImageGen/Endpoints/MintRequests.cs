@@ -37,7 +37,7 @@ public class MintRequestsDetails(IDbContextFactory<MintDbContext> dbContextFacto
             }
 
             List<MintRequestDetailsResponse> response = [.. mintRequests.Select(mr => new MintRequestDetailsResponse(
-                mr.Id,
+                mr.Address!,
                 mr.Status.ToString(),
                 mr.UploadPaymentAddress ?? string.Empty,
                 mr.AdaFsId,

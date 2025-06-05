@@ -21,7 +21,7 @@ public class PaymentWorker(
 
                 List<Wallet> pendingPayments = await dbContext.Wallets
                     .OrderBy(p => p.UpdatedAt)
-                    .Where(p => p.Status == UploadStatus.Pending)
+                    .Where(p => p.Status == UploadStatus.Waiting)
                     .Take(5)
                     .ToListAsync(stoppingToken);
 
@@ -32,7 +32,7 @@ public class PaymentWorker(
                 }
 
                 Task<Wallet?>[] tasks = [.. pendingPayments.Select(request =>
-                    fileService.WaitForPaymentAsync(request.Address)
+                    fileService.WaitForPaymentAsync(request.Address!)
                 )];
 
                 await Task.WhenAll(tasks);
