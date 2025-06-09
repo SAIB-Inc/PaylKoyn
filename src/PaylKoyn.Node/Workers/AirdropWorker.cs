@@ -2,6 +2,7 @@ using Chrysalis.Wallet.Models.Keys;
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models;
 using PaylKoyn.Data.Responses;
+using PaylKoyn.Data.Models.Template;
 using PaylKoyn.Data.Services;
 using PaylKoyn.Data.Utils;
 using PaylKoyn.Node.Data;
@@ -57,8 +58,6 @@ public partial class AirdropWorker(
                     continue;
                 }
 
-                Wallet pendingWallet = pendingWallets.First();
-
                 bool hasBalance = await assetTransferService.ValidateAirdropBalanceAsync(
                     airdropAddressBech32, _policyId, _assetName, MinimumLovelaceBalance, _airdropAmount);
 
@@ -68,18 +67,22 @@ public partial class AirdropWorker(
                     continue;
                 }
 
-                if (pendingWallet.AirdropAddress is null)
-                {
-                    logger.LogWarning("Pending wallet {Address} does not have an airdrop address set.", pendingWallet.Address);
-                    pendingWallet.UpdatedAt = DateTime.UtcNow;
-                    pendingWallet.Status = UploadStatus.Airdropped;
-                    dbContext.Wallets.Update(pendingWallet);
-                    await dbContext.SaveChangesAsync(stoppingToken);
 
-                    continue;
+                foreach (Wallet pendingWallet in pendingWallets)
+                {
+                    if (pendingWallet.AirdropAddress is null)
+                    {
+                        logger.LogWarning("Pending wallet {Address} does not have an airdrop address set.", pendingWallet.Address);
+                        pendingWallet.UpdatedAt = DateTime.UtcNow;
+                        pendingWallet.Status = UploadStatus.Airdropped;
+                        dbContext.Wallets.Update(pendingWallet);
+                        continue;
+                    }
+                    await dbContext.SaveChangesAsync(stoppingToken);
                 }
 
-                await ExecuteAirdropAsync(dbContext, pendingWallet, airdropAddressBech32, privateKey, assetMap, stoppingToken);
+
+                await ExecuteAirdropAsync(dbContext, pendingWallets, airdropAddressBech32, privateKey, assetMap, stoppingToken);
             }
             catch (OperationCanceledException)
             {
@@ -94,7 +97,7 @@ public partial class AirdropWorker(
 
     private async Task ExecuteAirdropAsync(
         WalletDbContext dbContext,
-        Wallet pendingWallet,
+        List<Wallet> pendingWallets,
         string airdropAddress,
         PrivateKey privateKey,
         Dictionary<string, Dictionary<string, ulong>> assetMap,
@@ -102,47 +105,57 @@ public partial class AirdropWorker(
     {
         try
         {
+            List<Recipient> recipients = [.. pendingWallets.Select(wallet => new Recipient(wallet.AirdropAddress!, assetMap))];
             string txHash = await assetTransferService.SendAssetTransferAsync(
                 airdropAddress,
-                pendingWallet.AirdropAddress!,
-                assetMap,
+                recipients,
                 privateKey);
 
-            await UpdateWalletAsCompletedAsync(dbContext, pendingWallet, txHash, stoppingToken);
+            await UpdateWalletAsCompletedAsync(dbContext, pendingWallets, txHash, stoppingToken);
 
-            logger.LogInformation("Airdrop completed for wallet {Address}. TxHash: {TxHash}",
-                pendingWallet.Address, txHash);
+            logger.LogInformation("Airdrop completed for {WalletCount} wallets. TxHash: {TxHash}. Addresses: [{Addresses}]",
+                pendingWallets.Count,
+                txHash,
+                string.Join(", ", pendingWallets.Select(w => w.Address)));
         }
         catch
         {
-            logger.LogInformation("Airdrop failed for wallet {Address}", pendingWallet.Address);
+            logger.LogInformation("Airdrop failed for {WalletCount} wallets. Addresses: [{Addresses}]",
+                pendingWallets.Count,
+                string.Join(", ", pendingWallets.Select(w => w.Address)));
 
-            await UpdateWalletTimestampAsync(dbContext, pendingWallet, stoppingToken);
+            await UpdateWalletTimestampAsync(dbContext, pendingWallets, stoppingToken);
             throw;
         }
     }
 
     private static async Task UpdateWalletAsCompletedAsync(
         WalletDbContext dbContext,
-        Wallet wallet,
+        List<Wallet> wallets,
         string txHash,
         CancellationToken stoppingToken)
     {
-        wallet.Status = UploadStatus.Airdropped;
-        wallet.AirdropTxHash = txHash;
-        wallet.UpdatedAt = DateTime.UtcNow;
+        foreach (var wallet in wallets)
+        {
+            wallet.Status = UploadStatus.Airdropped;
+            wallet.AirdropTxHash = txHash;
+            wallet.UpdatedAt = DateTime.UtcNow;
+            dbContext.Wallets.Update(wallet);
+        }
 
-        dbContext.Wallets.Update(wallet);
         await dbContext.SaveChangesAsync(stoppingToken);
     }
 
     private static async Task UpdateWalletTimestampAsync(
         WalletDbContext dbContext,
-        Wallet wallet,
+        List<Wallet> wallets,
         CancellationToken stoppingToken)
     {
-        wallet.UpdatedAt = DateTime.UtcNow;
-        dbContext.Wallets.Update(wallet);
+        foreach (var wallet in wallets)
+        {
+            wallet.UpdatedAt = DateTime.UtcNow;
+            dbContext.Wallets.Update(wallet);
+        }
         await dbContext.SaveChangesAsync(stoppingToken);
     }
 }

@@ -1,5 +1,6 @@
 using Chrysalis.Wallet.Models.Keys;
 using Microsoft.EntityFrameworkCore;
+using PaylKoyn.Data.Models.Template;
 using PaylKoyn.Data.Services;
 using PaylKoyn.ImageGen.Data;
 using PaylKoyn.ImageGen.Services;
@@ -47,10 +48,9 @@ public partial class AirdropWorker(
             {
                 using MintDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                IEnumerable<MintRequest> pendingAirdrops = await mintingService.GetActiveRequestsWithCleanupAsync(MintStatus.NftSent, 1, stoppingToken);
-                MintRequest? pendingAirdrop = pendingAirdrops.FirstOrDefault();
+                List<MintRequest> pendingAirdrops = await mintingService.GetActiveRequestsWithCleanupAsync(MintStatus.NftSent, 1, stoppingToken);
 
-                if (pendingAirdrop is null)
+                if (!pendingAirdrops.Any())
                 {
                     await Task.Delay(NormalRetryDelayMs, stoppingToken);
                     continue;
@@ -65,7 +65,7 @@ public partial class AirdropWorker(
                     continue;
                 }
 
-                await ExecuteAirdropAsync(dbContext, pendingAirdrop, airdropAddressBech32, privateKey, assetMap, stoppingToken);
+                await ExecuteAirdropAsync(dbContext, pendingAirdrops, airdropAddressBech32, privateKey, assetMap, stoppingToken);
             }
             catch (OperationCanceledException)
             {
@@ -80,7 +80,7 @@ public partial class AirdropWorker(
 
     private async Task ExecuteAirdropAsync(
         MintDbContext dbContext,
-        MintRequest pendingAirdrop,
+        List<MintRequest> pendingAirdrops,
         string airdropAddress,
         PrivateKey privateKey,
         Dictionary<string, Dictionary<string, ulong>> assetMap,
@@ -88,46 +88,62 @@ public partial class AirdropWorker(
     {
         try
         {
+            List<Recipient> recipients = [.. pendingAirdrops.Select(request =>
+                new Recipient(request.UserAddress, assetMap))];
+
             string txHash = await assetTransferService.SendAssetTransferAsync(
                 airdropAddress,
-                pendingAirdrop.UserAddress,
-                assetMap,
+                recipients,
                 privateKey);
 
-            await UpdateRequestAsCompletedAsync(dbContext, pendingAirdrop, txHash, stoppingToken);
+            await UpdateRequestAsCompletedAsync(dbContext, pendingAirdrops, txHash, stoppingToken);
 
-            logger.LogInformation("Airdrop completed for request {RequestId}. TxHash: {TxHash}", pendingAirdrop.Id, txHash);
+            logger.LogInformation("Airdrop completed for {RequestCount} requests. TxHash: {TxHash}. RequestIds: [{RequestIds}]",
+                pendingAirdrops.Count,
+                txHash,
+                string.Join(", ", pendingAirdrops.Select(r => r.Id)));
         }
         catch
         {
-            logger.LogInformation("Airdrop failed for request {RequestId} to address {Address}", pendingAirdrop.Id, pendingAirdrop.UserAddress);
+            logger.LogInformation("Airdrop failed for {RequestCount} requests. RequestIds: [{RequestIds}]. Addresses: [{Addresses}]",
+                pendingAirdrops.Count,
+                string.Join(", ", pendingAirdrops.Select(r => r.Id)),
+                string.Join(", ", pendingAirdrops.Select(r => r.UserAddress)));
 
-            await UpdateRequestTimestampAsync(dbContext, pendingAirdrop, stoppingToken);
+            await UpdateRequestTimestampAsync(dbContext, pendingAirdrops, stoppingToken);
             throw;
         }
     }
 
     private static async Task UpdateRequestAsCompletedAsync(
-        MintDbContext dbContext,
-        MintRequest request,
-        string txHash,
-        CancellationToken stoppingToken)
+    MintDbContext dbContext,
+    List<MintRequest> requests,
+    string txHash,
+    CancellationToken stoppingToken)
     {
-        request.Status = MintStatus.TokenSent;
-        request.AirdropTxHash = txHash;
-        request.UpdatedAt = DateTime.UtcNow;
+        foreach (var request in requests)
+        {
+            request.Status = MintStatus.TokenSent;
+            request.AirdropTxHash = txHash;
+            request.UpdatedAt = DateTime.UtcNow;
 
-        dbContext.MintRequests.Update(request);
+            dbContext.MintRequests.Update(request);
+        }
+
         await dbContext.SaveChangesAsync(stoppingToken);
     }
 
     private static async Task UpdateRequestTimestampAsync(
         MintDbContext dbContext,
-        MintRequest request,
+        List<MintRequest> requests,
         CancellationToken stoppingToken)
     {
-        request.UpdatedAt = DateTime.UtcNow;
-        dbContext.MintRequests.Update(request);
+        foreach (var request in requests)
+        {
+            request.UpdatedAt = DateTime.UtcNow;
+            dbContext.MintRequests.Update(request);
+        }
+
         await dbContext.SaveChangesAsync(stoppingToken);
     }
 }
