@@ -32,6 +32,7 @@ public partial class AirdropWorker(
         ?? throw new ArgumentNullException("Airdrop AssetName is not configured");
     private readonly ulong _airdropAmount = configuration.GetValue<ulong?>("Airdrop:Amount")
         ?? throw new ArgumentNullException("Airdrop Amount is not configured");
+    private readonly int _maxAirdropCount = configuration.GetValue<int>("Airdrop:MaxCount", 15);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -50,7 +51,7 @@ public partial class AirdropWorker(
             {
                 using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                List<Wallet> pendingWallets = await fileService.GetActiveWalletsWithCleanupAsync(UploadStatus.Uploaded, limit: 1, cancellationToken: stoppingToken);
+                List<Wallet> pendingWallets = await fileService.GetActiveWalletsWithCleanupAsync(UploadStatus.Uploaded, _maxAirdropCount, cancellationToken: stoppingToken);
 
                 if (pendingWallets.Count == 0)
                 {

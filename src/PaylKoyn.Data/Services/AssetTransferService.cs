@@ -1,6 +1,7 @@
 using Chrysalis.Cbor.Extensions.Cardano.Core.Common;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
 using Chrysalis.Cbor.Types.Cardano.Core.Common;
+using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using Chrysalis.Tx.Extensions;
 using Chrysalis.Tx.Models;
 using Chrysalis.Tx.Models.Cbor;
@@ -94,8 +95,8 @@ public class AssetTransferService(
         TransactionTemplate<MultiAssetTransferParams> transferTemplate = transactionService.MultiAssetTransfer(cardanoDataProvider);
         MultiAssetTransferParams transferParams = new(fromAddress, recipients);
 
-        Chrysalis.Cbor.Types.Cardano.Core.Transaction.Transaction unsignedTransaction = await transferTemplate(transferParams);
-        Chrysalis.Cbor.Types.Cardano.Core.Transaction.Transaction signedTransaction = unsignedTransaction.Sign(privateKey);
+        Transaction unsignedTransaction = await transferTemplate(transferParams);
+        Transaction signedTransaction = unsignedTransaction.Sign(privateKey);
 
         string txHash = await cardanoDataProvider.SubmitTransactionAsync(signedTransaction);
         logger.LogInformation("Asset transfer submitted. TxHash: {TxHash}", txHash);
