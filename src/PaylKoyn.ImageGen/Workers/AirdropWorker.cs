@@ -98,10 +98,9 @@ public partial class AirdropWorker(
 
             logger.LogInformation("Airdrop completed for request {RequestId}. TxHash: {TxHash}", pendingAirdrop.Id, txHash);
         }
-        catch (Exception ex)
+        catch
         {
-            logger.LogError(ex, "Airdrop failed for request {RequestId} to address {Address}",
-                pendingAirdrop.Id, pendingAirdrop.UserAddress);
+            logger.LogInformation("Airdrop failed for request {RequestId} to address {Address}", pendingAirdrop.Id, pendingAirdrop.UserAddress);
 
             await UpdateRequestTimestampAsync(dbContext, pendingAirdrop, stoppingToken);
             throw;

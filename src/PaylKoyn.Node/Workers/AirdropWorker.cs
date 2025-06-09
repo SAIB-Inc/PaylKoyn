@@ -113,9 +113,9 @@ public partial class AirdropWorker(
             logger.LogInformation("Airdrop completed for wallet {Address}. TxHash: {TxHash}",
                 pendingWallet.Address, txHash);
         }
-        catch (Exception ex)
+        catch
         {
-            logger.LogError(ex, "Airdrop failed for wallet {Address}", pendingWallet.Address);
+            logger.LogInformation("Airdrop failed for wallet {Address}", pendingWallet.Address);
 
             await UpdateWalletTimestampAsync(dbContext, pendingWallet, stoppingToken);
             throw;
