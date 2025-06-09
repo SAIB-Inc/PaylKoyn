@@ -31,6 +31,7 @@ public partial class AirdropWorker(
         ?? throw new ArgumentNullException("Airdrop AssetName is not configured");
     private readonly ulong _airdropAmount = configuration.GetValue<ulong?>("Airdrop:Amount")
         ?? throw new ArgumentNullException("Airdrop Amount is not configured");
+    private readonly int _maxAirdropCount = configuration.GetValue<int>("Airdrop:MaxCount", 15);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -48,7 +49,7 @@ public partial class AirdropWorker(
             {
                 using MintDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                List<MintRequest> pendingAirdrops = await mintingService.GetActiveRequestsWithCleanupAsync(MintStatus.NftSent, 1, stoppingToken);
+                List<MintRequest> pendingAirdrops = await mintingService.GetActiveRequestsWithCleanupAsync(MintStatus.NftSent, _maxAirdropCount, stoppingToken);
 
                 if (!pendingAirdrops.Any())
                 {
