@@ -93,7 +93,7 @@ public class AssetTransferService(
         PrivateKey privateKey)
     {
         TransactionTemplate<MultiAssetTransferParams> transferTemplate = transactionService.MultiAssetTransfer(cardanoDataProvider);
-        MultiAssetTransferParams transferParams = new MultiAssetTransferParams(fromAddress, toAddress, assetMap);
+        MultiAssetTransferParams transferParams = new(fromAddress, toAddress, assetMap);
 
         Chrysalis.Cbor.Types.Cardano.Core.Transaction.Transaction unsignedTransaction = await transferTemplate(transferParams);
         Chrysalis.Cbor.Types.Cardano.Core.Transaction.Transaction signedTransaction = unsignedTransaction.Sign(privateKey);

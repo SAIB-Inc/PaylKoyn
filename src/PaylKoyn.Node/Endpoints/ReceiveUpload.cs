@@ -1,9 +1,8 @@
 using FastEndpoints;
 using Microsoft.AspNetCore.Mvc;
-using PaylKoyn.Data.Services;
 using PaylKoyn.Node.Services;
-using Chrysalis.Wallet.Models.Keys;
 using PaylKoyn.Data.Responses;
+
 namespace PaylKoyn.Node.Endpoints;
 
 public class UploadFileRequest
@@ -15,7 +14,7 @@ public class UploadFileRequest
 }
 
 [RequestSizeLimit(100_000_000)]
-public class ReceiveUpload(FileService fileService, WalletService walletService) : Endpoint<UploadFileRequest>
+public class ReceiveUpload(FileService fileService) : Endpoint<UploadFileRequest>
 {
     public override void Configure()
     {
@@ -40,22 +39,25 @@ public class ReceiveUpload(FileService fileService, WalletService walletService)
             fileContent = memoryStream.ToArray();
         }
 
-        // Get private key for the wallet address (req.Id is the wallet address)
-        PrivateKey? privateKey = await walletService.GetPrivateKeyByAddressAsync(req.Id);
-        if (privateKey == null)
-        {
-            await SendAsync(new { error = "Wallet not found for address: " + req.Id }, 404, cancellation: ct);
-            return;
-        }
-
         try
         {
-            string adaFsId = await fileService.UploadAsync(req.Id, fileContent, req.ContentType, req.Name, privateKey);
+            ulong requiredFee = await fileService.UploadAsync(req.Id, fileContent, req.ContentType, req.Name);
+
             await SendOkAsync(new UploadFileResponse(
                 Message: "File will be uploaded soon.",
-                AdaFsId: adaFsId,
-                FileSize: fileContent.Length / 1024.0m / 1024.0m
+                FileSize: fileContent.Length / 1024.0m / 1024.0m,
+                EstimatedFee: requiredFee / 1_000_000.0m
             ), cancellation: ct);
+        }
+        catch (ArgumentException ex)
+        {
+            Console.WriteLine($"Error processing file: {ex.Message}");
+            await SendAsync(new { error = ex.Message }, 400, cancellation: ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Console.WriteLine($"Error processing file: {ex.Message}");
+            await SendAsync(new { error = ex.Message }, 409, cancellation: ct);
         }
         catch (Exception ex)
         {

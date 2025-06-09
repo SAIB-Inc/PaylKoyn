@@ -1,6 +1,7 @@
 using Chrysalis.Wallet.Models.Keys;
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models;
+using PaylKoyn.Data.Responses;
 using PaylKoyn.Data.Services;
 using PaylKoyn.Data.Utils;
 using PaylKoyn.Node.Data;
@@ -48,7 +49,7 @@ public partial class AirdropWorker(
             {
                 using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                List<Wallet> pendingWallets = await fileService.GetActiveWalletsWithCleanupAsync(UploadStatus.Uploaded, limit: 1, stoppingToken);
+                List<Wallet> pendingWallets = await fileService.GetActiveWalletsWithCleanupAsync(UploadStatus.Uploaded, limit: 1, cancellationToken: stoppingToken);
 
                 if (pendingWallets.Count == 0)
                 {
@@ -89,14 +90,6 @@ public partial class AirdropWorker(
                 await Task.Delay(ErrorRetryDelayMs, stoppingToken);
             }
         }
-    }
-
-    private static async Task<Wallet?> GetNextPendingAirdropAsync(WalletDbContext dbContext, CancellationToken stoppingToken)
-    {
-        return await dbContext.Wallets
-            .Where(wallet => wallet.Status == UploadStatus.Uploaded)
-            .OrderBy(wallet => wallet.UpdatedAt)
-            .FirstOrDefaultAsync(stoppingToken);
     }
 
     private async Task ExecuteAirdropAsync(

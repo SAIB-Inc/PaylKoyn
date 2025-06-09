@@ -96,8 +96,7 @@ public partial class AirdropWorker(
 
             await UpdateRequestAsCompletedAsync(dbContext, pendingAirdrop, txHash, stoppingToken);
 
-            logger.LogInformation("Airdrop completed for request {RequestId}. TxHash: {TxHash}",
-                pendingAirdrop.Id, txHash);
+            logger.LogInformation("Airdrop completed for request {RequestId}. TxHash: {TxHash}", pendingAirdrop.Id, txHash);
         }
         catch (Exception ex)
         {

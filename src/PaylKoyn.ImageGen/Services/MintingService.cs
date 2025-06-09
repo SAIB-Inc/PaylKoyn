@@ -155,13 +155,53 @@ public class MintingService(
         try
         {
             UploadFileResponse? uploadResponse = await PerformImageUploadAsync(mintRequest);
-            return await UpdateRequestAfterUploadAsync(dbContext, mintRequest, uploadResponse?.AdaFsId);
+            mintRequest.UpdatedAt = DateTime.UtcNow;
+            mintRequest.Status = MintStatus.Uploading;
+
+            logger.LogInformation("Image uploaded successfully for request ID: {Id}", mintRequest.Id);
+
+            dbContext.MintRequests.Update(mintRequest);
+            await dbContext.SaveChangesAsync();
+            return mintRequest;
         }
-        catch (Exception ex)
+        catch
         {
-            logger.LogError(ex, "Failed to upload image for request ID: {Id}", id);
+            logger.LogInformation("Failed to upload image for request ID: {Id}", id);
             return await UpdateRequestStatusAsync(dbContext, mintRequest);
         }
+    }
+
+    public async Task<MintRequest> UpdateUploadStatusAsync(int id)
+    {
+        using MintDbContext dbContext = dbContextFactory.CreateDbContext();
+        MintRequest mintRequest = await GetMintRequestAsync(dbContext, id);
+
+        try
+        {
+            UploadDetailsResponse? uploadResponse =
+                await _nodeClient.GetFromJsonAsync<UploadDetailsResponse>($"upload/details/{mintRequest.UploadPaymentAddress}");
+
+            if (uploadResponse?.AdaFsId is not null)
+            {
+                mintRequest.AdaFsId = uploadResponse.AdaFsId;
+                mintRequest.Status = MintStatus.Uploaded;
+                logger.LogInformation("Image uploaded successfully for request ID: {Id}", mintRequest.Id);
+            }
+            else
+            {
+                logger.LogInformation("Image upload not completed for request ID: {Id}", id);
+            }
+        }
+        catch
+        {
+            logger.LogInformation("Failed to upload image for request ID: {Id}", id);
+        }
+
+        mintRequest.UpdatedAt = DateTime.UtcNow;
+        dbContext.MintRequests.Update(mintRequest);
+        await dbContext.SaveChangesAsync();
+
+        return mintRequest;
     }
 
     public async Task<MintRequest> MintNftAsync(
@@ -394,19 +434,6 @@ public class MintingService(
         }
 
         throw new InvalidOperationException($"Failed to upload after {MaxUploadRetries + 1} attempts");
-    }
-
-    private async Task<MintRequest> UpdateRequestAfterUploadAsync(MintDbContext dbContext, MintRequest mintRequest, string? adaFsId)
-    {
-        mintRequest.AdaFsId = adaFsId;
-        mintRequest.UpdatedAt = DateTime.UtcNow;
-        mintRequest.Status = MintStatus.Uploaded;
-
-        logger.LogInformation("Image uploaded successfully for request ID: {Id}", mintRequest.Id);
-
-        dbContext.MintRequests.Update(mintRequest);
-        await dbContext.SaveChangesAsync();
-        return mintRequest;
     }
 
     private static async Task<MintRequest> UpdateRequestStatusAsync(MintDbContext dbContext, MintRequest mintRequest)

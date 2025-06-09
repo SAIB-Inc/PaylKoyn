@@ -22,6 +22,7 @@ builder.Services.Configure<KestrelServerOptions>(options =>
 builder.Services.AddHostedService<SubmitWorker>();
 builder.Services.AddHostedService<PaymentWorker>();
 builder.Services.AddHostedService<AirdropWorker>();
+builder.Services.AddHostedService<TxWorker>();
 
 builder.Services.AddOpenApi();
 builder.Services.AddFastEndpoints(o => o.IncludeAbstractValidators = true);
