@@ -67,7 +67,6 @@ public partial class AirdropWorker(
                     continue;
                 }
 
-
                 foreach (Wallet pendingWallet in pendingWallets)
                 {
                     if (pendingWallet.AirdropAddress is null)
