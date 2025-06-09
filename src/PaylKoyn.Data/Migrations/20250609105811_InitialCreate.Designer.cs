@@ -12,14 +12,15 @@ using PaylKoyn.Data.Models;
 namespace PaylKoyn.Data.Migrations
 {
     [DbContext(typeof(PaylKoynDbContext))]
-    [Migration("20250604200830_AddTransactionSubmissions")]
-    partial class AddTransactionSubmissions
+    [Migration("20250609105811_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
+                .HasDefaultSchema("public")
                 .HasAnnotation("ProductVersion", "9.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
@@ -43,7 +44,7 @@ namespace PaylKoyn.Data.Migrations
 
                     b.HasKey("Name");
 
-                    b.ToTable("ReducerStates");
+                    b.ToTable("ReducerStates", "public");
                 });
 
             modelBuilder.Entity("PaylKoyn.Data.Models.Entity.OutputBySlot", b =>
@@ -87,7 +88,7 @@ namespace PaylKoyn.Data.Migrations
 
                     b.HasIndex("SpentTxHash");
 
-                    b.ToTable("OutputsBySlot");
+                    b.ToTable("OutputsBySlot", "public");
                 });
 
             modelBuilder.Entity("PaylKoyn.Data.Models.Entity.TransactionBySlot", b =>
@@ -110,7 +111,7 @@ namespace PaylKoyn.Data.Migrations
 
                     b.HasIndex("Slot");
 
-                    b.ToTable("TransactionsBySlot");
+                    b.ToTable("TransactionsBySlot", "public");
                 });
 
             modelBuilder.Entity("PaylKoyn.Data.Models.Entity.TransactionSubmission", b =>
@@ -137,7 +138,7 @@ namespace PaylKoyn.Data.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("TransactionSubmissions");
+                    b.ToTable("TransactionSubmissions", "public");
                 });
 #pragma warning restore 612, 618
         }
