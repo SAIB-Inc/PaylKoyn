@@ -88,12 +88,11 @@ public class AssetTransferService(
 
     public async Task<string> SendAssetTransferAsync(
         string fromAddress,
-        string toAddress,
-        Dictionary<string, Dictionary<string, ulong>> assetMap,
+        List<Recipient> recipients,
         PrivateKey privateKey)
     {
         TransactionTemplate<MultiAssetTransferParams> transferTemplate = transactionService.MultiAssetTransfer(cardanoDataProvider);
-        MultiAssetTransferParams transferParams = new MultiAssetTransferParams(fromAddress, toAddress, assetMap);
+        MultiAssetTransferParams transferParams = new(fromAddress, recipients);
 
         Chrysalis.Cbor.Types.Cardano.Core.Transaction.Transaction unsignedTransaction = await transferTemplate(transferParams);
         Chrysalis.Cbor.Types.Cardano.Core.Transaction.Transaction signedTransaction = unsignedTransaction.Sign(privateKey);

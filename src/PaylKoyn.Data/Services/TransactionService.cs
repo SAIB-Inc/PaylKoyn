@@ -36,11 +36,29 @@ public class TransactionService()
     public TransactionTemplate<MultiAssetTransferParams> MultiAssetTransfer(ICardanoDataProvider provider)
     {
         TransactionTemplate<MultiAssetTransferParams> transferTemplate = TransactionTemplateBuilder<MultiAssetTransferParams>.Create(provider)
-            .AddOutput((options, parameters) =>
+            .AddConfigGenerator((parameters) =>
             {
-                LovelaceWithMultiAsset multiAsset = AssetUtils.ConvertToLovelaceWithMultiAsset(parameters.Assets);
-                options.To = "to";
-                options.Amount = multiAsset;
+                List<(InputConfig<MultiAssetTransferParams>, List<MintConfig<MultiAssetTransferParams>>, List<OutputConfig<MultiAssetTransferParams>>)> configs = [];
+                InputConfig<MultiAssetTransferParams> inputConfig = (options, _) =>
+                {
+                    options.From = parameters.From;
+                };
+
+                List<OutputConfig<MultiAssetTransferParams>> outputConfigs = [];
+                foreach (Recipient recipient in parameters.Recipients)
+                {
+                    OutputConfig<MultiAssetTransferParams> outputConfig = (options, _) =>
+                    {
+                        options.To = recipient.Address;
+                        options.Amount = AssetUtils.ConvertToLovelaceWithMultiAsset(recipient.Assets);
+                    };
+                    outputConfigs.Add(outputConfig);
+                }
+
+                configs.Add((inputConfig, [], outputConfigs));
+
+                return configs;
+
             })
             .Build();
 
