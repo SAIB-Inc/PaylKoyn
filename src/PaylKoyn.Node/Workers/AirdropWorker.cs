@@ -1,6 +1,7 @@
 using Chrysalis.Wallet.Models.Keys;
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models;
+using PaylKoyn.Data.Responses;
 using PaylKoyn.Data.Models.Template;
 using PaylKoyn.Data.Services;
 using PaylKoyn.Data.Utils;
@@ -49,7 +50,7 @@ public partial class AirdropWorker(
             {
                 using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                List<Wallet> pendingWallets = await fileService.GetActiveWalletsWithCleanupAsync(UploadStatus.Uploaded, limit: 1, stoppingToken);
+                List<Wallet> pendingWallets = await fileService.GetActiveWalletsWithCleanupAsync(UploadStatus.Uploaded, limit: 1, cancellationToken: stoppingToken);
 
                 if (pendingWallets.Count == 0)
                 {
@@ -65,7 +66,6 @@ public partial class AirdropWorker(
                     await Task.Delay(NormalRetryDelayMs, stoppingToken);
                     continue;
                 }
-
 
                 foreach (Wallet pendingWallet in pendingWallets)
                 {
@@ -94,14 +94,6 @@ public partial class AirdropWorker(
         }
     }
 
-    private static async Task<Wallet?> GetNextPendingAirdropAsync(WalletDbContext dbContext, CancellationToken stoppingToken)
-    {
-        return await dbContext.Wallets
-            .Where(wallet => wallet.Status == UploadStatus.Uploaded)
-            .OrderBy(wallet => wallet.UpdatedAt)
-            .FirstOrDefaultAsync(stoppingToken);
-    }
-
     private async Task ExecuteAirdropAsync(
         WalletDbContext dbContext,
         List<Wallet> pendingWallets,
@@ -125,9 +117,9 @@ public partial class AirdropWorker(
                 txHash,
                 string.Join(", ", pendingWallets.Select(w => w.Address)));
         }
-        catch (Exception ex)
+        catch
         {
-            logger.LogError(ex, "Airdrop failed for {WalletCount} wallets. Addresses: [{Addresses}]",
+            logger.LogInformation("Airdrop failed for {WalletCount} wallets. Addresses: [{Addresses}]",
                 pendingWallets.Count,
                 string.Join(", ", pendingWallets.Select(w => w.Address)));
 

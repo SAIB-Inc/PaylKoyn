@@ -35,6 +35,7 @@ builder.Services.AddHostedService<NftPaymentWorker>();
 builder.Services.AddHostedService<PreUploadWorker>();
 builder.Services.AddHostedService<UploadWorker>();
 builder.Services.AddHostedService<AirdropWorker>();
+builder.Services.AddHostedService<UploadStatusWorker>();
 
 WebApplication app = builder.Build();
 

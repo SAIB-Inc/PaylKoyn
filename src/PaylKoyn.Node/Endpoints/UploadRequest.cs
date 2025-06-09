@@ -1,6 +1,6 @@
 using FastEndpoints;
-using PaylKoyn.Data.Models;
 using PaylKoyn.Data.Responses;
+using PaylKoyn.Node.Data;
 using PaylKoyn.Node.Services;
 
 namespace PaylKoyn.Node.Endpoints;

@@ -5,6 +5,7 @@ public enum MintStatus
     Waiting,
     Paid,
     Processing,
+    Uploading,
     Uploaded,
     NftSent,
     TokenSent,

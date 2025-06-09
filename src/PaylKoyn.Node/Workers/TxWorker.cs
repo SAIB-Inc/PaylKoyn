@@ -1,13 +1,12 @@
 
 using Microsoft.EntityFrameworkCore;
-using PaylKoyn.Data.Models;
 using PaylKoyn.Data.Responses;
 using PaylKoyn.Node.Data;
 using PaylKoyn.Node.Services;
 
 namespace PaylKoyn.Node.Workers;
 
-public class PaymentWorker(
+public class TxWorker(
     IDbContextFactory<WalletDbContext> dbContextFactory,
     FileService fileService
 ) : BackgroundService
@@ -20,16 +19,16 @@ public class PaymentWorker(
             {
                 using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                List<Wallet> pendingPayments = await fileService.GetActiveWalletsWithCleanupAsync(UploadStatus.Waiting, limit: 5, cancellationToken: stoppingToken);
+                List<Wallet> pendingTxBuilds = await fileService.GetActiveWalletsWithCleanupAsync(UploadStatus.Paid, 10, stoppingToken);
 
-                if (pendingPayments.Count == 0)
+                if (pendingTxBuilds.Count == 0)
                 {
                     await Task.Delay(5000, stoppingToken);
                     continue;
                 }
 
-                Task<Wallet?>[] tasks = [.. pendingPayments.Select(request =>
-                    fileService.WaitForPaymentAsync(request.Address!)
+                Task[] tasks = [.. pendingTxBuilds.Select(request =>
+                    fileService.PrepareTransactionsAsync(request.Address!)
                 )];
 
                 await Task.WhenAll(tasks);

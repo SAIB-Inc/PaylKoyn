@@ -2,6 +2,7 @@ using Chrysalis.Wallet.Models.Enums;
 using Chrysalis.Wallet.Models.Keys;
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models;
+using PaylKoyn.Data.Responses;
 using PaylKoyn.Data.Utils;
 using PaylKoyn.Node.Data;
 using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;

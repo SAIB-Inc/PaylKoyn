@@ -1,15 +1,13 @@
 
 using Microsoft.EntityFrameworkCore;
-using PaylKoyn.Data.Models;
-using PaylKoyn.Data.Responses;
-using PaylKoyn.Node.Data;
-using PaylKoyn.Node.Services;
+using PaylKoyn.ImageGen.Data;
+using PaylKoyn.ImageGen.Services;
 
-namespace PaylKoyn.Node.Workers;
+namespace PaylKoyn.ImageGen.Workers;
 
-public class SubmitWorker(
-    IDbContextFactory<WalletDbContext> dbContextFactory,
-    FileService fileService
+public class UploadStatusWorker(
+    IDbContextFactory<MintDbContext> dbContextFactory,
+    MintingService mintingService
 ) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -18,9 +16,9 @@ public class SubmitWorker(
         {
             try
             {
-                using WalletDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
+                using MintDbContext dbContext = await dbContextFactory.CreateDbContextAsync(stoppingToken);
 
-                List<Wallet> pendingUploads = await fileService.GetActiveWalletsWithCleanupAsync(UploadStatus.Queued, limit: 3, cancellationToken: stoppingToken);
+                List<MintRequest> pendingUploads = await mintingService.GetActiveRequestsWithCleanupAsync(MintStatus.Uploading, 5, stoppingToken);
 
                 if (pendingUploads.Count == 0)
                 {
@@ -28,8 +26,8 @@ public class SubmitWorker(
                     continue;
                 }
 
-                Task<Wallet>[] tasks = [.. pendingUploads.Select(request =>
-                    fileService.SubmitTransactionsAsync(request.Address!)
+                Task<MintRequest>[] tasks = [.. pendingUploads.Select(request =>
+                    mintingService.UpdateUploadStatusAsync(request.Id)
                 )];
 
                 await Task.WhenAll(tasks);
@@ -42,6 +40,8 @@ public class SubmitWorker(
             {
                 await Task.Delay(10000, stoppingToken);
             }
+
+            await Task.Delay(5000, stoppingToken);
         }
     }
 }

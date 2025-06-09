@@ -103,9 +103,9 @@ public partial class AirdropWorker(
                 txHash,
                 string.Join(", ", pendingAirdrops.Select(r => r.Id)));
         }
-        catch (Exception ex)
+        catch
         {
-            logger.LogError(ex, "Airdrop failed for {RequestCount} requests. RequestIds: [{RequestIds}]. Addresses: [{Addresses}]",
+            logger.LogInformation("Airdrop failed for {RequestCount} requests. RequestIds: [{RequestIds}]. Addresses: [{Addresses}]",
                 pendingAirdrops.Count,
                 string.Join(", ", pendingAirdrops.Select(r => r.Id)),
                 string.Join(", ", pendingAirdrops.Select(r => r.UserAddress)));

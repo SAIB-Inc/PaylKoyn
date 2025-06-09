@@ -1,19 +1,8 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
+using PaylKoyn.Data.Responses;
 
-namespace PaylKoyn.Data.Models;
-
-public enum UploadStatus
-{
-    Waiting,
-    Paid,
-    Queued,
-    Uploaded,
-    Airdropped,
-    RefundRequested,
-    Refunded,
-    Failed
-}
+namespace PaylKoyn.Node.Data;
 
 public record TxStatus(byte[] TxRaw, bool IsSent, bool IsConfirmed)
 {
