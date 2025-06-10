@@ -11,6 +11,10 @@ public class RetrieveUploadDetails(WalletService walletService) : EndpointWithou
     {
         Get("/upload/details/{address}");
         AllowAnonymous();
+        Description(x => x
+            .WithTags("Upload")
+            .WithSummary("Fetches details of an upload request by address")
+            .WithDescription("Gets the upload request details for a specific wallet address from the URL path."));
     }
 
     public override async Task HandleAsync(CancellationToken ct)
@@ -36,8 +40,9 @@ public class RetrieveUploadDetails(WalletService walletService) : EndpointWithou
             UploadDetailsResponse uploadDetails = new(
                 wallet.Address!,
                 wallet.AdaFsId,
+                wallet.RefundTxHash,
                 wallet.FileSize,
-                wallet.Status,
+                wallet.Status.ToString().ToLowerInvariant(),
                 wallet.UpdatedAt
             );
 
