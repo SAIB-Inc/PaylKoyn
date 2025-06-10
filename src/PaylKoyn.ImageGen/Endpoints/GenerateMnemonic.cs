@@ -12,7 +12,7 @@ public class GenerateMnemonic : Endpoint<List<NftTrait>>
         Post("/generate/mnemonic");
         AllowAnonymous();
         Description(x => x
-            .WithTags("NFT")
+            .WithTags("Generate")
             .WithSummary("Generates a new mnemonic")
         );
     }
