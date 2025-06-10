@@ -23,6 +23,7 @@ builder.Services.AddHostedService<SubmitWorker>();
 builder.Services.AddHostedService<PaymentWorker>();
 builder.Services.AddHostedService<AirdropWorker>();
 builder.Services.AddHostedService<TxWorker>();
+builder.Services.AddHostedService<RefundWorker>();
 
 builder.Services.AddOpenApi();
 builder.Services.AddFastEndpoints(o => o.IncludeAbstractValidators = true);
