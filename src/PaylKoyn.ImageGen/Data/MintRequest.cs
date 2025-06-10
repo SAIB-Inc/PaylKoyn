@@ -46,9 +46,11 @@ public record MintRequest(
     public string? AdaFsId { get; set; } = AdaFsId;
     public string? MintTxHash { get; set; } = MintTxHash;
     public string? AirdropTxHash { get; set; } = AirdropTxHash;
+    public string? RefundTxHash { get; set; } = null;
     public string? Traits { get; set; } = Traits;
     public byte[]? Image { get; set; } = Image;
     public MintStatus Status { get; set; } = Status;
+    public MintStatus? LastValidStatus { get; set; } = null;
     public int? NftNumber { get; set; } = NftNumber;
     public DateTime CreatedAt { get; init; } = CreatedAt;
     public DateTime UpdatedAt { get; set; } = UpdatedAt;
