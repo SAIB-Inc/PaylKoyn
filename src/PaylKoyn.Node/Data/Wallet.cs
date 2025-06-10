@@ -15,12 +15,14 @@ public record Wallet
 {
     public int Id { get; set; }
     public string? Address { get; set; } = null;
-    public string? AirdropAddress { get; set; } = null;
+    public string? UserAddress { get; set; } = null;
     public string? AdaFsId { get; set; } = null;
     public string? AirdropTxHash { get; set; } = null;
+    public string? RefundTxHash { get; set; } = null;
     public string? TransactionsRaw { get; set; } = null;
     public int FileSize { get; set; } = 0;
     public UploadStatus Status { get; set; } = UploadStatus.Waiting;
+    public UploadStatus? LastValidStatus { get; set; } = null;
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
