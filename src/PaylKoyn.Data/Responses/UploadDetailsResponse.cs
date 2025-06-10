@@ -15,7 +15,8 @@ public enum UploadStatus
 public record UploadDetailsResponse(
     string Address,
     string? AdaFsId,
+    string? RefundTxHash,
     int FileSize,
-    UploadStatus Status,
+    string Status,
     DateTime LastUpdated
 );
