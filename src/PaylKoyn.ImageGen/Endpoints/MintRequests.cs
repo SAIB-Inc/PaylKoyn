@@ -12,7 +12,7 @@ public class MintRequestsDetails(IDbContextFactory<MintDbContext> dbContextFacto
         Get("/mint/requests/{address}");
         AllowAnonymous();
         Description(x => x
-            .WithTags("NFT")
+            .WithTags("Mint")
             .WithSummary("Fetches details of a mint request by user address")
             .WithDescription("Gets a mint requests by user address from the URL path."));
     }
@@ -49,6 +49,8 @@ public class MintRequestsDetails(IDbContextFactory<MintDbContext> dbContextFacto
                 mr.UploadPaymentAddress ?? string.Empty,
                 mr.AdaFsId,
                 mr.MintTxHash,
+                mr.AirdropTxHash,
+                mr.RefundTxHash,
                 (mr.Image?.Length ?? 1) / 1024m / 1024m,
                 mr.UpdatedAt
             ))];
