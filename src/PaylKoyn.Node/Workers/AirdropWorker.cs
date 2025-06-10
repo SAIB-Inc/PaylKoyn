@@ -75,7 +75,7 @@ public partial class AirdropWorker(
 
                 foreach (Wallet pendingWallet in pendingWallets)
                 {
-                    if (pendingWallet.AirdropAddress is null)
+                    if (pendingWallet.UserAddress is null)
                     {
                         logger.LogWarning("Pending wallet {Address} does not have an airdrop address set.", pendingWallet.Address);
                         pendingWallet.UpdatedAt = DateTime.UtcNow;
@@ -122,7 +122,7 @@ public partial class AirdropWorker(
 
             foreach (Wallet wallet in pendingWallets)
             {
-                Recipient recipient = new(wallet.AirdropAddress!, assetMap);
+                Recipient recipient = new(wallet.UserAddress!, assetMap);
                 recipients.Add(recipient);
 
                 Transaction airdropTx = await assetTransferService.CreateAssetTransferTransactionAsync(
