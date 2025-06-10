@@ -45,7 +45,7 @@ public class TransactionTemplateService(IConfiguration configuration, ICardanoDa
     {
         TransactionTemplateBuilder<MintNftParams> builder = TransactionTemplateBuilder<MintNftParams>.Create(provider);
 
-        builder.AddOutput((options, parameters) =>
+        builder.AddOutput((options, parameters, _) =>
             {
                 NativeScript mintingScript = ScriptUtil.GetMintingScript(parameters.MintingAddress, parameters.InvalidAfter);
                 string mintingPolicyId = ScriptUtil.GetPolicyId(mintingScript);
