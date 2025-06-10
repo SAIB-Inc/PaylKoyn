@@ -54,12 +54,12 @@ public class WalletService(
         return wallet is null ? null : GetPaymentPrivateKey(wallet.Id);
     }
 
-    private static Wallet CreateWalletWithoutAddress(string? airdropAddress)
+    private static Wallet CreateWalletWithoutAddress(string? userAddress)
     {
         return new Wallet()
         {
             Address = null!,
-            AirdropAddress = airdropAddress,
+            UserAddress = userAddress,
             Status = UploadStatus.Waiting,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow

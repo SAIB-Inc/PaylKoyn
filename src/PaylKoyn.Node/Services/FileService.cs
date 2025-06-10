@@ -11,7 +11,6 @@ using Chrysalis.Tx.Models;
 using Chrysalis.Tx.Models.Cbor;
 using Chrysalis.Wallet.Models.Keys;
 using Microsoft.EntityFrameworkCore;
-using PaylKoyn.Data.Models;
 using PaylKoyn.Data.Responses;
 using PaylKoyn.Data.Services;
 using PaylKoyn.Node.Data;
@@ -103,6 +102,7 @@ public class FileService(
 
             foreach (Wallet? expiredWallet in expiredWallets)
             {
+                expiredWallet.LastValidStatus = expiredWallet.Status;
                 expiredWallet.Status = UploadStatus.Failed;
                 expiredWallet.UpdatedAt = DateTime.UtcNow;
             }
@@ -157,6 +157,7 @@ public class FileService(
         catch (TimeoutException ex)
         {
             logger.LogInformation(ex, "Payment timeout for {Address}", address);
+            wallet.LastValidStatus = wallet.Status;
             wallet.Status = UploadStatus.Failed;
         }
         catch (Exception ex)

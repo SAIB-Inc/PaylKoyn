@@ -6,6 +6,8 @@ public record MintRequestDetailsResponse(
     string UploadAddress,
     string? AdaFsId,
     string? MintTxHash,
+    string? AirdropTxHash,
+    string? RefundTxHash,
     decimal FileSize,
     DateTime UpdatedAt
 );

@@ -13,7 +13,6 @@ using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models.Template;
 using PaylKoyn.Data.Responses;
 using PaylKoyn.Data.Services;
-using PaylKoyn.Data.Utils;
 using PaylKoyn.ImageGen.Data;
 using WalletAddress = Chrysalis.Wallet.Models.Addresses.Address;
 
@@ -72,11 +71,11 @@ public class MintingService(
         MintStatus status,
         CancellationToken cancellationToken = default)
     {
-        using var dbContext = dbContextFactory.CreateDbContext();
+        using MintDbContext dbContext = dbContextFactory.CreateDbContext();
 
-        var cutoffTime = DateTime.UtcNow - _requestExpirationTime;
+        DateTime cutoffTime = DateTime.UtcNow - _requestExpirationTime;
 
-        var expiredRequests = await dbContext.MintRequests
+        List<MintRequest> expiredRequests = await dbContext.MintRequests
             .Where(request => request.Status == status)
             .Where(request => request.CreatedAt < cutoffTime)
             .ToListAsync(cancellationToken);
@@ -86,8 +85,9 @@ public class MintingService(
             logger.LogWarning("Marking {Count} expired {Status} requests as failed (older than {Minutes} minutes)",
                 expiredRequests.Count, status, _requestExpirationTime.TotalMinutes);
 
-            foreach (var expiredRequest in expiredRequests)
+            foreach (MintRequest? expiredRequest in expiredRequests)
             {
+                expiredRequest.LastValidStatus = expiredRequest.Status;
                 expiredRequest.Status = MintStatus.Failed;
                 expiredRequest.UpdatedAt = DateTime.UtcNow;
             }
@@ -334,6 +334,7 @@ public class MintingService(
         logger.LogWarning("Payment for request ID: {Id} not received within the expiration time of {ExpirationTime} minutes.",
             id, _paymentExpirationTime.TotalMinutes);
 
+        mintRequest.LastValidStatus = mintRequest.Status;
         mintRequest.Status = MintStatus.Failed;
         mintRequest.UpdatedAt = DateTime.UtcNow;
         dbContext.MintRequests.Update(mintRequest);

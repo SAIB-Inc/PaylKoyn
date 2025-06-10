@@ -2,22 +2,25 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using PaylKoyn.ImageGen.Data;
+using PaylKoyn.Node.Data;
 
 #nullable disable
 
-namespace PaylKoyn.ImageGen.Migrations
+namespace PaylKoyn.Node.Migrations
 {
-    [DbContext(typeof(MintDbContext))]
-    partial class MintDbContextModelSnapshot : ModelSnapshot
+    [DbContext(typeof(WalletDbContext))]
+    [Migration("20250610192057_Refund")]
+    partial class Refund
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.5");
 
-            modelBuilder.Entity("PaylKoyn.ImageGen.Data.MintRequest", b =>
+            modelBuilder.Entity("PaylKoyn.Node.Data.Wallet", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -32,29 +35,14 @@ namespace PaylKoyn.ImageGen.Migrations
                     b.Property<string>("AirdropTxHash")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("AssetName")
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<byte[]>("Image")
-                        .HasColumnType("BLOB");
+                    b.Property<int>("FileSize")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int?>("LastValidStatus")
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("MintTxHash")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("NftMetadata")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("NftNumber")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("PolicyId")
-                        .HasColumnType("TEXT");
 
                     b.Property<string>("RefundTxHash")
                         .HasColumnType("TEXT");
@@ -62,31 +50,20 @@ namespace PaylKoyn.ImageGen.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Traits")
+                    b.Property<string>("TransactionsRaw")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("UploadPaymentAddress")
-                        .HasColumnType("TEXT");
-
-                    b.Property<ulong>("UploadPaymentAmount")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("UserAddress")
-                        .IsRequired()
                         .HasColumnType("TEXT");
-
-                    b.Property<int>("WalletIndex")
-                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("NftNumber")
-                        .IsUnique();
+                    b.HasIndex("Address");
 
-                    b.ToTable("MintRequests");
+                    b.ToTable("Wallets");
                 });
 #pragma warning restore 612, 618
         }

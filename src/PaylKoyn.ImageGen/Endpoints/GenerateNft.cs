@@ -10,7 +10,7 @@ public class GenerateNft(NftRandomizerService nftRandomizerService) : Endpoint<L
         Post("/generate/nft");
         AllowAnonymous();
         Description(x => x
-            .WithTags("NFT")
+            .WithTags("Generate")
             .WithSummary("Generates a new NFT")
             .WithDescription("This endpoint generates an NFT image based on the provided traits."));
     }

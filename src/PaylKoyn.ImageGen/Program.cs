@@ -36,6 +36,7 @@ builder.Services.AddHostedService<PreUploadWorker>();
 builder.Services.AddHostedService<UploadWorker>();
 builder.Services.AddHostedService<AirdropWorker>();
 builder.Services.AddHostedService<UploadStatusWorker>();
+builder.Services.AddHostedService<RefundWorker>();
 
 WebApplication app = builder.Build();
 

@@ -13,7 +13,7 @@ public class MintNft(WalletService walletService) : Endpoint<MintNftRequest>
         Post("/mint/request");
         AllowAnonymous();
         Description(x => x
-            .WithTags("NFT")
+            .WithTags("Mint")
             .WithSummary("Creates a mint request for an NFT")
             .WithDescription("Creates a mint request and returns the mint request address for the fee."));
     }
