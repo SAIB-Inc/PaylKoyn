@@ -11,6 +11,10 @@ public class UploadRequest(WalletService walletService) : EndpointWithoutRequest
     {
         Post("/upload/request/{address}");
         AllowAnonymous();
+        Description(x => x
+            .WithTags("Upload")
+            .WithSummary("Creates an upload request for airdrop")
+            .WithDescription("Generates a wallet address for uploading files and returns it in the response."));
     }
 
     public override async Task HandleAsync(CancellationToken ct)
