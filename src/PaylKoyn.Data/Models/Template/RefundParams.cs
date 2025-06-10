@@ -2,11 +2,11 @@ using Chrysalis.Tx.Models;
 
 namespace PaylKoyn.Data.Models.Template;
 
-public record TransferParams(string From, string To, ulong Amount) : ITransactionParameters
+public record RefundParams(string From, string To, ulong Amount) : ITransactionParameters
 {
     public Dictionary<string, (string address, bool isChange)> Parties { get; set; } = new()
     {
-        { "funding", (From, false) },
-        { "to", (To, true) },
+        { "change", (From, false) },
+        { "to", (To, false) },
     };
 }
