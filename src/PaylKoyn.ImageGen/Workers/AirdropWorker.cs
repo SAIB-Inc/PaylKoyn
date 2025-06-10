@@ -1,3 +1,7 @@
+using Chrysalis.Cbor.Serialization;
+using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
+using Chrysalis.Network.Cbor.LocalStateQuery;
+using Chrysalis.Tx.Models;
 using Chrysalis.Wallet.Models.Keys;
 using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models.Template;
@@ -14,6 +18,7 @@ public partial class AirdropWorker(
     WalletService walletService,
     AssetTransferService assetTransferService,
     MintingService mintingService,
+    ICardanoDataProvider cardanoDataProvider,
     ILogger<AirdropWorker> logger
 ) : BackgroundService
 {
@@ -31,7 +36,7 @@ public partial class AirdropWorker(
         ?? throw new ArgumentNullException("Airdrop AssetName is not configured");
     private readonly ulong _airdropAmount = configuration.GetValue<ulong?>("Airdrop:Amount")
         ?? throw new ArgumentNullException("Airdrop Amount is not configured");
-    private readonly int _maxAirdropCount = configuration.GetValue<int>("Airdrop:MaxCount", 15);
+    private readonly int _maxAirdropCount = configuration.GetValue<int>("Airdrop:MaxCount", 50);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -51,7 +56,7 @@ public partial class AirdropWorker(
 
                 List<MintRequest> pendingAirdrops = await mintingService.GetActiveRequestsWithCleanupAsync(MintStatus.NftSent, _maxAirdropCount, stoppingToken);
 
-                if (!pendingAirdrops.Any())
+                if (pendingAirdrops.Count == 0)
                 {
                     await Task.Delay(NormalRetryDelayMs, stoppingToken);
                     continue;
@@ -87,31 +92,52 @@ public partial class AirdropWorker(
         Dictionary<string, Dictionary<string, ulong>> assetMap,
         CancellationToken stoppingToken)
     {
+        ProtocolParams pparams = await cardanoDataProvider.GetParametersAsync();
+        int maxTxSize = (int)(pparams.MaxTransactionSize ?? 16384);
+        List<MintRequest> requestsToUpdate = [];
+
         try
         {
-            List<Recipient> recipients = [.. pendingAirdrops.Select(request =>
-                new Recipient(request.UserAddress, assetMap))];
+            Transaction? finalTransaction = null;
+            List<Recipient> recipients = [];
+            foreach (var request in pendingAirdrops)
+            {
+                Recipient recipient = new(request.UserAddress, assetMap);
+                recipients.Add(recipient);
 
-            string txHash = await assetTransferService.SendAssetTransferAsync(
-                airdropAddress,
-                recipients,
-                privateKey);
+                Transaction airdropTx = await assetTransferService.CreateAssetTransferTransactionAsync(
+                    airdropAddress,
+                    recipients,
+                    privateKey
+                );
 
-            await UpdateRequestAsCompletedAsync(dbContext, pendingAirdrops, txHash, stoppingToken);
+                byte[] txBytes = CborSerializer.Serialize(airdropTx);
+                if (txBytes.Length > maxTxSize)
+                {
+                    finalTransaction = airdropTx;
+                    break;
+                }
+                requestsToUpdate.Add(request);
+                finalTransaction = airdropTx;
+            }
+
+            string txHash = await assetTransferService.SendAssetTransferAsync(finalTransaction!);
+
+            await UpdateRequestAsCompletedAsync(dbContext, requestsToUpdate, txHash, stoppingToken);
 
             logger.LogInformation("Airdrop completed for {RequestCount} requests. TxHash: {TxHash}. RequestIds: [{RequestIds}]",
-                pendingAirdrops.Count,
+                requestsToUpdate.Count,
                 txHash,
-                string.Join(", ", pendingAirdrops.Select(r => r.Id)));
+                string.Join(", ", requestsToUpdate.Select(r => r.Id)));
         }
         catch
         {
             logger.LogInformation("Airdrop failed for {RequestCount} requests. RequestIds: [{RequestIds}]. Addresses: [{Addresses}]",
-                pendingAirdrops.Count,
-                string.Join(", ", pendingAirdrops.Select(r => r.Id)),
-                string.Join(", ", pendingAirdrops.Select(r => r.UserAddress)));
+                requestsToUpdate.Count,
+                string.Join(", ", requestsToUpdate.Select(r => r.Id)),
+                string.Join(", ", requestsToUpdate.Select(r => r.UserAddress)));
 
-            await UpdateRequestTimestampAsync(dbContext, pendingAirdrops, stoppingToken);
+            await UpdateRequestTimestampAsync(dbContext, requestsToUpdate, stoppingToken);
             throw;
         }
     }

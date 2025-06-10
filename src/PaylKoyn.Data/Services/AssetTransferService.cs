@@ -2,6 +2,7 @@ using Chrysalis.Cbor.Extensions.Cardano.Core.Common;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
 using Chrysalis.Cbor.Types.Cardano.Core.Common;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
+using Chrysalis.Network.Cbor.LocalStateQuery;
 using Chrysalis.Tx.Extensions;
 using Chrysalis.Tx.Models;
 using Chrysalis.Tx.Models.Cbor;
@@ -87,7 +88,7 @@ public class AssetTransferService(
         return hasBalance;
     }
 
-    public async Task<string> SendAssetTransferAsync(
+    public async Task<Transaction> CreateAssetTransferTransactionAsync(
         string fromAddress,
         List<Recipient> recipients,
         PrivateKey privateKey)
@@ -98,7 +99,13 @@ public class AssetTransferService(
         Transaction unsignedTransaction = await transferTemplate(transferParams);
         Transaction signedTransaction = unsignedTransaction.Sign(privateKey);
 
-        string txHash = await cardanoDataProvider.SubmitTransactionAsync(signedTransaction);
+        return signedTransaction;
+    }
+
+    public async Task<string> SendAssetTransferAsync(
+        Transaction transaction)
+    {
+        string txHash = await cardanoDataProvider.SubmitTransactionAsync(transaction);
         logger.LogInformation("Asset transfer submitted. TxHash: {TxHash}", txHash);
 
         return txHash;
