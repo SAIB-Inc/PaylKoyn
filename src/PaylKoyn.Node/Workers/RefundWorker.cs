@@ -17,7 +17,6 @@ namespace PaylKoyn.Node.Workers;
 
 public partial class RefundWorker(
     IDbContextFactory<WalletDbContext> dbContextFactory,
-    IConfiguration configuration,
     WalletService walletService,
     TransactionService txService,
     FileService fileService,
