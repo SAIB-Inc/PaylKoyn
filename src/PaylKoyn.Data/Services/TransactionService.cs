@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Common;
 using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
 using Chrysalis.Cbor.Serialization;
@@ -22,11 +23,26 @@ public class TransactionService()
 {
     public TransactionTemplate<TransferParams> Transfer(ICardanoDataProvider provider)
     {
+        // 100 ADA -> 0.3 
+        // 99.5 ADA -> some other 
         TransactionTemplate<TransferParams> transferTemplate = TransactionTemplateBuilder<TransferParams>.Create(provider)
-            .AddOutput((options, parameters) =>
+            .AddOutput((options, parameters, _) =>
             {
                 options.To = "to";
                 options.Amount = new Lovelace(parameters.Amount);
+            })
+            .Build();
+
+        return transferTemplate;
+    }
+
+    public TransactionTemplate<RefundParams> Refund(ICardanoDataProvider provider)
+    {
+        TransactionTemplate<RefundParams> transferTemplate = TransactionTemplateBuilder<RefundParams>.Create(provider)
+            .AddOutput((options, parameters, fee) =>
+            {
+                options.To = "to";
+                options.Amount = new Lovelace(parameters.Amount - fee);
             })
             .Build();
 
@@ -47,7 +63,7 @@ public class TransactionService()
                 List<OutputConfig<MultiAssetTransferParams>> outputConfigs = [];
                 foreach (Recipient recipient in parameters.Recipients)
                 {
-                    OutputConfig<MultiAssetTransferParams> outputConfig = (options, _) =>
+                    OutputConfig<MultiAssetTransferParams> outputConfig = (options, _, _) =>
                     {
                         options.To = recipient.Address;
                         options.Amount = AssetUtils.ConvertToLovelaceWithMultiAsset(recipient.Assets);
