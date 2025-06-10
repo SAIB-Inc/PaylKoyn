@@ -107,12 +107,13 @@ public partial class AirdropWorker(
         Dictionary<string, Dictionary<string, ulong>> assetMap,
         CancellationToken stoppingToken)
     {
-        ProtocolParams pparams = await cardanoDataProvider.GetParametersAsync();
-        int maxTxSize = (int)(pparams.MaxTransactionSize ?? 16384);
         List<Wallet> walletsToAirdrop = [];
 
         try
         {
+            ProtocolParams pparams = await cardanoDataProvider.GetParametersAsync();
+            int maxTxSize = (int)(pparams.MaxTransactionSize ?? 16384);
+            
             List<Recipient> recipients = [];
             Transaction? finalTransaction = null;
 
