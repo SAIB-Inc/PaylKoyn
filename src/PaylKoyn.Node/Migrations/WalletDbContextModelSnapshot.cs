@@ -29,9 +29,6 @@ namespace PaylKoyn.Node.Migrations
                     b.Property<string>("Address")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("AirdropAddress")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("AirdropTxHash")
                         .HasColumnType("TEXT");
 
@@ -41,6 +38,12 @@ namespace PaylKoyn.Node.Migrations
                     b.Property<int>("FileSize")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("LastValidStatus")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RefundTxHash")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
 
@@ -48,6 +51,9 @@ namespace PaylKoyn.Node.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserAddress")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
