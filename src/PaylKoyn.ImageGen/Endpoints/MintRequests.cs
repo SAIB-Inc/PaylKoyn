@@ -19,7 +19,13 @@ public class MintRequestsDetails(IDbContextFactory<MintDbContext> dbContextFacto
 
     public override async Task HandleAsync(CancellationToken ct)
     {
-        string address = Route<string>("address")!;
+        string address = Route<string>("address", isRequired: true)!;
+        int limit = Query<int>("limit", isRequired: false);
+
+        if (limit <= 0)
+        {
+            limit = 10;
+        }
 
         await using MintDbContext dbContext = await dbContextFactory.CreateDbContextAsync(ct);
 
@@ -28,6 +34,7 @@ public class MintRequestsDetails(IDbContextFactory<MintDbContext> dbContextFacto
             IEnumerable<MintRequest>? mintRequests = await dbContext.MintRequests
                 .AsNoTracking()
                 .Where(mr => mr.UserAddress == address)
+                .OrderByDescending(mr => mr.UpdatedAt)
                 .ToListAsync(ct);
 
             if (mintRequests is null || !mintRequests.Any())

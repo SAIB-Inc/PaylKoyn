@@ -107,7 +107,6 @@ public class TransactionTemplateService(IConfiguration configuration, ICardanoDa
                 Address = new(addr.ToBytes())
             };
             WalletAddress addr2 = new(output.Address.Value);
-            Console.WriteLine($"Reward address: {addr2.ToBech32()}");
             outputs.RemoveAt(outputs.Count - 1);
             outputs.Add(output);
 

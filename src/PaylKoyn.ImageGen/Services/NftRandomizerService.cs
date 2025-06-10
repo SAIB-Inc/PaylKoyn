@@ -18,10 +18,9 @@ public class NftRandomizerService(IConfiguration configuration)
         new("Zest", [.. _allCategories.Except(["lineart", "clothing"])]),
         new("Base", [.. _allCategories.Except(["clothing", "hat"])]),
     ];
-    private static readonly Random _random = Random.Shared;
-
+    private static readonly ThreadLocal<Random> _random = new(() => new Random(Guid.NewGuid().GetHashCode()));
     private const string BasePath = "./Assets";
-    private readonly Dictionary<string, int> _weights = configuration.GetValue<Dictionary<string, int>>("NftWeights") ?? [];
+    private readonly Dictionary<string, int> _weights = configuration.GetValue<Dictionary<string, int>>("GroupWeight") ?? [];
 
     public byte[] GenerateNftImage(IEnumerable<NftTrait> traits, string? outputPath = null)
     {
@@ -78,7 +77,7 @@ public class NftRandomizerService(IConfiguration configuration)
     private AttributeGroup SelectRandomAttributeGroup(List<AttributeGroup> availableGroups)
     {
         int totalWeight = availableGroups.Sum(g => GetWeight(g.Name));
-        int randomValue = _random.Next(1, totalWeight + 1);
+        int randomValue = _random.Value!.Next(1, totalWeight + 1);
 
         int cumulativeWeight = 0;
         foreach (AttributeGroup group in availableGroups)

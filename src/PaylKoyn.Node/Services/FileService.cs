@@ -110,6 +110,12 @@ public class FileService(
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
+        // Clean up temporary files for expired wallets if they exist
+        foreach (Wallet expiredWallet in expiredWallets)
+        {
+            CleanupFiles(expiredWallet.Address!);
+        }
+
         return expiredWallets.Count;
     }
 

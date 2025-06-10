@@ -1,12 +1,15 @@
 using Chrysalis.Wallet.Models.Keys;
 using Microsoft.EntityFrameworkCore;
-using PaylKoyn.Data.Models;
 using PaylKoyn.Data.Responses;
 using PaylKoyn.Data.Models.Template;
 using PaylKoyn.Data.Services;
 using PaylKoyn.Data.Utils;
 using PaylKoyn.Node.Data;
 using PaylKoyn.Node.Services;
+using Chrysalis.Tx.Models;
+using Chrysalis.Network.Cbor.LocalStateQuery;
+using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
+using Chrysalis.Cbor.Serialization;
 
 namespace PaylKoyn.Node.Workers;
 
@@ -15,6 +18,7 @@ public partial class AirdropWorker(
     IConfiguration configuration,
     AssetTransferService assetTransferService,
     FileService fileService,
+    ICardanoDataProvider cardanoDataProvider,
     ILogger<AirdropWorker> logger
 ) : BackgroundService
 {
@@ -32,7 +36,8 @@ public partial class AirdropWorker(
         ?? throw new ArgumentNullException("Airdrop AssetName is not configured");
     private readonly ulong _airdropAmount = configuration.GetValue<ulong?>("Airdrop:Amount")
         ?? throw new ArgumentNullException("Airdrop Amount is not configured");
-    private readonly int _maxAirdropCount = configuration.GetValue<int>("Airdrop:MaxCount", 15);
+    private readonly int _maxAirdropCount = configuration.GetValue<int>("Airdrop:MaxCount", 50);
+    private readonly TimeSpan _airdropInterval = TimeSpan.FromMinutes(configuration.GetValue<int>("Airdrop:IntervalMinutes", 5));
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -92,6 +97,8 @@ public partial class AirdropWorker(
             {
                 await Task.Delay(ErrorRetryDelayMs, stoppingToken);
             }
+
+            await Task.Delay(_airdropInterval, stoppingToken);
         }
     }
 
@@ -103,28 +110,53 @@ public partial class AirdropWorker(
         Dictionary<string, Dictionary<string, ulong>> assetMap,
         CancellationToken stoppingToken)
     {
+        List<Wallet> walletsToAirdrop = [];
+
         try
         {
-            List<Recipient> recipients = [.. pendingWallets.Select(wallet => new Recipient(wallet.AirdropAddress!, assetMap))];
-            string txHash = await assetTransferService.SendAssetTransferAsync(
-                airdropAddress,
-                recipients,
-                privateKey);
+            ProtocolParams pparams = await cardanoDataProvider.GetParametersAsync();
+            int maxTxSize = (int)(pparams.MaxTransactionSize ?? 16384);
 
-            await UpdateWalletAsCompletedAsync(dbContext, pendingWallets, txHash, stoppingToken);
+            List<Recipient> recipients = [];
+            Transaction? finalTransaction = null;
+
+            foreach (Wallet wallet in pendingWallets)
+            {
+                Recipient recipient = new(wallet.AirdropAddress!, assetMap);
+                recipients.Add(recipient);
+
+                Transaction airdropTx = await assetTransferService.CreateAssetTransferTransactionAsync(
+                    airdropAddress,
+                    recipients,
+                    privateKey
+                );
+
+                byte[] txBytes = CborSerializer.Serialize(airdropTx);
+                if (txBytes.Length > maxTxSize)
+                {
+                    break;
+                }
+
+                walletsToAirdrop.Add(wallet);
+                finalTransaction = airdropTx;
+            }
+
+            string txHash = await assetTransferService.SendAssetTransferAsync(finalTransaction!);
+
+            await UpdateWalletAsCompletedAsync(dbContext, walletsToAirdrop, txHash, stoppingToken);
 
             logger.LogInformation("Airdrop completed for {WalletCount} wallets. TxHash: {TxHash}. Addresses: [{Addresses}]",
-                pendingWallets.Count,
+                walletsToAirdrop.Count,
                 txHash,
-                string.Join(", ", pendingWallets.Select(w => w.Address)));
+                string.Join(", ", walletsToAirdrop.Select(w => w.Address)));
         }
         catch
         {
             logger.LogInformation("Airdrop failed for {WalletCount} wallets. Addresses: [{Addresses}]",
-                pendingWallets.Count,
-                string.Join(", ", pendingWallets.Select(w => w.Address)));
+                walletsToAirdrop.Count,
+                string.Join(", ", walletsToAirdrop.Select(w => w.Address)));
 
-            await UpdateWalletTimestampAsync(dbContext, pendingWallets, stoppingToken);
+            await UpdateWalletTimestampAsync(dbContext, walletsToAirdrop, stoppingToken);
             throw;
         }
     }
@@ -135,7 +167,7 @@ public partial class AirdropWorker(
         string txHash,
         CancellationToken stoppingToken)
     {
-        foreach (var wallet in wallets)
+        foreach (Wallet wallet in wallets)
         {
             wallet.Status = UploadStatus.Airdropped;
             wallet.AirdropTxHash = txHash;
@@ -151,7 +183,7 @@ public partial class AirdropWorker(
         List<Wallet> wallets,
         CancellationToken stoppingToken)
     {
-        foreach (var wallet in wallets)
+        foreach (Wallet wallet in wallets)
         {
             wallet.UpdatedAt = DateTime.UtcNow;
             dbContext.Wallets.Update(wallet);
