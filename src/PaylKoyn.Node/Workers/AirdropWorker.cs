@@ -37,6 +37,7 @@ public partial class AirdropWorker(
     private readonly ulong _airdropAmount = configuration.GetValue<ulong?>("Airdrop:Amount")
         ?? throw new ArgumentNullException("Airdrop Amount is not configured");
     private readonly int _maxAirdropCount = configuration.GetValue<int>("Airdrop:MaxCount", 50);
+    private readonly TimeSpan _airdropInterval = TimeSpan.FromMinutes(configuration.GetValue<int>("Airdrop:IntervalMinutes", 5));
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -96,6 +97,8 @@ public partial class AirdropWorker(
             {
                 await Task.Delay(ErrorRetryDelayMs, stoppingToken);
             }
+
+            await Task.Delay(_airdropInterval, stoppingToken);
         }
     }
 
@@ -113,11 +116,11 @@ public partial class AirdropWorker(
         {
             ProtocolParams pparams = await cardanoDataProvider.GetParametersAsync();
             int maxTxSize = (int)(pparams.MaxTransactionSize ?? 16384);
-            
+
             List<Recipient> recipients = [];
             Transaction? finalTransaction = null;
 
-            foreach (var wallet in pendingWallets)
+            foreach (Wallet wallet in pendingWallets)
             {
                 Recipient recipient = new(wallet.AirdropAddress!, assetMap);
                 recipients.Add(recipient);
@@ -131,9 +134,9 @@ public partial class AirdropWorker(
                 byte[] txBytes = CborSerializer.Serialize(airdropTx);
                 if (txBytes.Length > maxTxSize)
                 {
-                    finalTransaction = airdropTx;
                     break;
                 }
+
                 walletsToAirdrop.Add(wallet);
                 finalTransaction = airdropTx;
             }
@@ -164,7 +167,7 @@ public partial class AirdropWorker(
         string txHash,
         CancellationToken stoppingToken)
     {
-        foreach (var wallet in wallets)
+        foreach (Wallet wallet in wallets)
         {
             wallet.Status = UploadStatus.Airdropped;
             wallet.AirdropTxHash = txHash;
@@ -180,7 +183,7 @@ public partial class AirdropWorker(
         List<Wallet> wallets,
         CancellationToken stoppingToken)
     {
-        foreach (var wallet in wallets)
+        foreach (Wallet wallet in wallets)
         {
             wallet.UpdatedAt = DateTime.UtcNow;
             dbContext.Wallets.Update(wallet);

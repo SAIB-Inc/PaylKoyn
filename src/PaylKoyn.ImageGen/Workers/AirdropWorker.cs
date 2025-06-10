@@ -37,6 +37,7 @@ public partial class AirdropWorker(
     private readonly ulong _airdropAmount = configuration.GetValue<ulong?>("Airdrop:Amount")
         ?? throw new ArgumentNullException("Airdrop Amount is not configured");
     private readonly int _maxAirdropCount = configuration.GetValue<int>("Airdrop:MaxCount", 50);
+    private readonly TimeSpan _airdropInterval = TimeSpan.FromMinutes(configuration.GetValue<int>("Airdrop:IntervalMinutes", 5));
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -81,6 +82,8 @@ public partial class AirdropWorker(
             {
                 await Task.Delay(ErrorRetryDelayMs, stoppingToken);
             }
+
+            await Task.Delay(_airdropInterval, stoppingToken);
         }
     }
 
@@ -98,9 +101,10 @@ public partial class AirdropWorker(
         {
             ProtocolParams pparams = await cardanoDataProvider.GetParametersAsync();
             int maxTxSize = (int)(pparams.MaxTransactionSize ?? 16384);
-            
+
             Transaction? finalTransaction = null;
             List<Recipient> recipients = [];
+
             foreach (var request in pendingAirdrops)
             {
                 Recipient recipient = new(request.UserAddress, assetMap);
@@ -115,9 +119,9 @@ public partial class AirdropWorker(
                 byte[] txBytes = CborSerializer.Serialize(airdropTx);
                 if (txBytes.Length > maxTxSize)
                 {
-                    finalTransaction = airdropTx;
                     break;
                 }
+
                 requestsToUpdate.Add(request);
                 finalTransaction = airdropTx;
             }
