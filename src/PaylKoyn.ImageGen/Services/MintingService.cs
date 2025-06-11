@@ -82,8 +82,8 @@ public class MintingService(
 
         if (expiredRequests.Count > 0)
         {
-            logger.LogWarning("Marking {Count} expired {Status} requests as failed (older than {Minutes} minutes)",
-                expiredRequests.Count, status, _requestExpirationTime.TotalMinutes);
+            logger.LogInformation("Marking {Count} expired {Status} requests as failed (older than {Minutes} minutes)",
+                expiredRequests.Count, status.ToString().ToLowerInvariant(), _requestExpirationTime.TotalMinutes);
 
             foreach (MintRequest? expiredRequest in expiredRequests)
             {
@@ -301,7 +301,7 @@ public class MintingService(
     private static void ValidateRequestStatus(MintRequest mintRequest, MintStatus expectedStatus, int id)
     {
         if (mintRequest.Status != expectedStatus)
-            throw new InvalidOperationException($"Mint request with ID {id} is not in {expectedStatus} status. Current status: {mintRequest.Status}");
+            throw new InvalidOperationException($"Mint request with ID {id} is not in {expectedStatus.ToString().ToLowerInvariant()} status. Current status: {mintRequest.Status.ToString().ToLowerInvariant}");
     }
 
     private async Task<(bool IsReceived, ulong ReceivedAmount)> CheckForPaymentAsync(string requestId, ulong requiredAmount)
@@ -332,7 +332,7 @@ public class MintingService(
 
     private async Task<MintRequest> HandlePaymentTimeoutAsync(MintDbContext dbContext, MintRequest mintRequest, int id)
     {
-        logger.LogWarning("Payment for request ID: {Id} not received within the expiration time of {ExpirationTime} minutes.",
+        logger.LogInformation("Payment for request ID: {Id} not received within the expiration time of {ExpirationTime} minutes.",
             id, _paymentExpirationTime.TotalMinutes);
 
         mintRequest.LastValidStatus = mintRequest.Status;
@@ -348,7 +348,7 @@ public class MintingService(
     {
         if (receivedAmount > 0)
         {
-            logger.LogWarning("Insufficient payment for request ID: {Id}. Required: {RequiredAmount} lovelace, but received: {ReceivedAmount} lovelace",
+            logger.LogInformation("Insufficient payment for request ID: {Id}. Required: {RequiredAmount} lovelace, but received: {ReceivedAmount} lovelace",
                 address, requiredAmount, receivedAmount);
         }
         else
@@ -429,7 +429,7 @@ public class MintingService(
             catch (HttpRequestException ex) when (attempt < MaxUploadRetries)
             {
                 int delayMs = BaseRetryDelayMs * (int)Math.Pow(2, attempt);
-                logger.LogWarning("Upload attempt {Attempt} failed, retrying in {DelayMs}ms. Error: {Error}",
+                logger.LogInformation("Upload attempt {Attempt} failed, retrying in {DelayMs}ms. Error: {Error}",
                     attempt + 1, delayMs, ex.Message);
                 await Task.Delay(delayMs);
             }

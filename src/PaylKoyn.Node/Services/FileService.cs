@@ -98,7 +98,7 @@ public class FileService(
         if (expiredWallets.Count > 0)
         {
             logger.LogWarning("Marking {Count} expired {Status} wallets as failed (older than {Minutes} minutes)",
-                expiredWallets.Count, status, _requestExpirationTime.TotalMinutes);
+                expiredWallets.Count, status.ToString().ToLowerInvariant(), _requestExpirationTime.TotalMinutes);
 
             foreach (Wallet? expiredWallet in expiredWallets)
             {
