@@ -233,7 +233,7 @@ public class MintingService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to mint NFT for request ID: {Id}", id);
+            logger.LogInformation(ex, "Failed to mint NFT for request ID: {Id}", id);
             return await UpdateRequestStatusAsync(dbContext, mintRequest);
         }
     }
