@@ -13,12 +13,31 @@
             class="sm:hidden">
             <MudImage Src="/images/payl_logo_mobile.svg" Alt="payl logo"/>
         </MudLink>
-        <div class="flex gap-2 items-center sm:!gap-6 lg:!gap-8">
-            <MudLink href="/buy" class="h-full !hidden !p-0 sm:!block">
-                <div class="h-[35px] w-[245px] !bg-[url(/images/default_nav.svg)] bg-no-repeat bg-[30px] lg:!pt-0 lg:h-[40px] lg:bg-auto hover:!bg-[url(/images/hover_nav.svg)] hover:h-[45.11px] active:!bg-[url(/images/active_nav.svg)]"></div>
+        <div class="flex gap-4 items-center sm:!gap-4 lg:!gap-8">
+            <MudLink 
+                href="/buy"
+                Class="flex-col items-center justify-center group !pb-2 !hidden md:!flex"
+            >
+                <MudImage
+                    Alt="crown"
+                    Src="/images/crown.webp"
+                    Class="!w-7 group-hover:-translate-y-2 group-active:-translate-y-0"
+                />
+                <MudImage
+                    Alt="get your payls now text"
+                    Src="/images/get_your_payls_now_default.svg"
+                    Class="group-hover:content-[url('/images/get_your_payls_now_hover.svg')] group-active:content-[url('/images/get_your_payls_now_active.svg')] !w-58"
+                />
             </MudLink>
-            <MudLink href="/buy" class="block h-full !w-fit !p-0 sm:!hidden">
-                <div class="h-[30px] aspect-square !bg-[url(/images/default_nav_mobile.svg)] bg-no-repeat bg-center active:!bg-[url(/images/active_nav_mobile.svg)]"></div>
+            <MudLink 
+                href="/buy"
+                Class="!p-0 md:!hidden"
+            >
+                <MudImage
+                    Alt="get you payls mobile"
+                    Src="/images/get_your_payls_now_default_mobile.webp"
+                    Class="active:content-[url('/images/get_your_payls_now_active_mobile.webp')] w-12 sm:w-13"
+                />
             </MudLink>
 
             @if(@CurrentUrl == "/")
