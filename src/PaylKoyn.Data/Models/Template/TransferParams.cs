@@ -6,7 +6,7 @@ public record TransferParams(string From, string To, ulong Amount) : ITransactio
 {
     public Dictionary<string, (string address, bool isChange)> Parties { get; set; } = new()
     {
-        { "funding", (From, false) },
-        { "to", (To, true) },
+        { "change", (From, true) },
+        { "to", (To, false) },
     };
 }

@@ -23,10 +23,8 @@ public class TransactionService()
 {
     public TransactionTemplate<TransferParams> Transfer(ICardanoDataProvider provider)
     {
-        // 100 ADA -> 0.3 
-        // 99.5 ADA -> some other 
         TransactionTemplate<TransferParams> transferTemplate = TransactionTemplateBuilder<TransferParams>.Create(provider)
-            .AddOutput((options, parameters, _) =>
+            .AddOutput((options, parameters, fee) =>
             {
                 options.To = "to";
                 options.Amount = new Lovelace(parameters.Amount);

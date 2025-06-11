@@ -92,6 +92,7 @@ public class MintingService(
                 expiredRequest.UpdatedAt = DateTime.UtcNow;
             }
 
+            dbContext.MintRequests.UpdateRange(expiredRequests);
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 

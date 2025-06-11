@@ -107,6 +107,7 @@ public class FileService(
                 expiredWallet.UpdatedAt = DateTime.UtcNow;
             }
 
+            dbContext.Wallets.UpdateRange(expiredWallets);
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
@@ -228,20 +229,6 @@ public class FileService(
 
         logger.LogInformation("Required fee: {Fee} lovelace for {Size} bytes", fee, fileSize);
         return fee;
-    }
-
-    private void ValidateWalletStatusForUpload(Wallet wallet, string address, ulong requiredFee)
-    {
-        if (wallet.Status == UploadStatus.Waiting)
-        {
-            decimal requiredFeeAda = requiredFee / LovelaceToAdaRatio;
-            throw new InvalidOperationException($"Please pay the required fee of {requiredFeeAda} $ADA to the address: {address} before uploading the file.");
-        }
-
-        if (wallet.Status != UploadStatus.Paid)
-        {
-            throw new InvalidOperationException($"File upload is either already in progress or completed for address: {address}. Current status: {wallet.Status}. AdaFsId: {wallet.AdaFsId}");
-        }
     }
 
     private async Task SaveFileWithMetadataAsync(string address, byte[] file, string fileName, string contentType)
