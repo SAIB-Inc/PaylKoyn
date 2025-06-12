@@ -1,0 +1,71 @@
+@page "/gallery"
+
+@namespace PaylKoyn.Web.Components.Pages
+
+<PageTitle>Gallery • PaylKoyn</PageTitle>
+
+<HeadContent>
+    <meta name="description"
+        content="PaylKoyn " />
+    <meta property="og:title" content="Official Website • PaylKoyn" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image:alt" content="PaylKoyn website image" />
+    <meta property="og:url" content="@OgUrl" />
+    <meta property="og:image" content="@OgImageUrl" />
+    <meta property="og:description"
+        content="Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore" />
+    <meta name="keywords"
+        content="PaylKoyn, file system, nft, meme coin, cardano, file, ipfs" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:url" content="@OgUrl" />
+    <meta name="twitter:description"
+        content="Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore" />
+    <meta name="twitter:site" content="@@paylkoyn" />
+    <meta name="twitter:creator" content="@@saib_inc" />
+</HeadContent>
+
+<section class="relative md:h-[calc(100vh-175.8px)] flex flex-col items-center justify-center">
+    <div>
+        <MudImage Src="/images/background.svg" Alt="background vectors" class="absolute top-0 left-[-194px] -z-10" />
+        <MudImage Src="/images/background.svg" Alt="background vectors" class="absolute top-0 right-[-190px] -z-10 scale-x-[-1]"/>
+    </div>
+    <div class="container mx-auto !rounded-3xl button-profile-gradient !p-[2px] max-h-[793px]">
+        <div class="bg-[var(--mud-palette-primary)] !rounded-3xl flex flex-col">
+            <div class="flex items-center !py-[17px] !pl-4 gap-3 md:gap-6 md:!p-6">
+                <div class="border-2 border-[var(--mud-palette-gray-dark)] rounded-full !p-[8.5px] md:!p-[17.5px]">
+                    <MudIcon Icon="@IconService.ImageIcon" Class="!text-[19px] !text-[var(--mud-palette-dark-darken)] md:!text-[35px]"/>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <MudText Class="text-[var(--mud-palette-text-primary)] !font-semibold leading-4 !text-base md:!text-2xl md:leading-6">Your PAYLS Collection</MudText>
+                    <MudText Class="text-[var(--mud-palette-background)] !font-medium leading-3 !text-xs md:!text-xl md:leading-5">
+                        A gallery of uploaded chaos, memes, and maybe... even useful PAYLS.
+                    </MudText>
+                </div>
+            </div>
+            <MudDivider Class="!border-[var(--mud-palette-gray-dark)]"/>
+            <div class="md:!p-6">
+                <div class="grid grid-cols-6 gap-y-4 !gap-x-10">
+                    @for(int x=0; x < 8; x++)
+                    {
+                        <div>
+                            <div class="flex-shrink-0 !rounded-[12px] md:!rounded-[4px] !overflow-hidden">
+                                <img src="/images/nft/nft_payl_koyn_princess.jpg" alt="Payl Princess"/>
+                            </div>
+                            <div class="!mt-2">
+                                <MudText Class="!uppercase !text-2xl !font-semibold">PAYL #5108</MudText>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="w-full flex items-center justify-center">
+                    <MudPagination 
+                        Count="4" 
+                        Rectangular="true"
+                        @bind-Selected="@Selected"
+                        Class="[&_.mud-pagination-item-selected_.mud-button-filled]:!bg-[var(--mud-palette-background)] [&_.mud-pagination-item>*]:!h-6 [&_.mud-pagination-item>*]:!min-w-6"
+                    />
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
