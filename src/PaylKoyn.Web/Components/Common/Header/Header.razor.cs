@@ -18,6 +18,9 @@ public partial class Header
     public required DAppBridgeService DAppBridgeService { get; set; }
 
     [Inject]
+    public required IconService IconService { get; set; }
+
+    [Inject]
     public required IDialogService DialogService { get; set; }
 
     public string CurrentUrl => new Uri(NavigationManager.Uri).AbsolutePath;

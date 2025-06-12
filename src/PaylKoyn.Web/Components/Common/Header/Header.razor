@@ -71,17 +71,80 @@
                 }
                 else
                 {
-                    <MudButton 
-                        OnClick="() => SelectedWallet = null"
-                        Class="!min-w-12 !max-w-12 !h-12 !rounded-full button-profile-gradient !p-[2px]"
+                    <MudMenu 
+                        PopoverClass="max-w-[350px] rounded-md border-2 !border-[var(--mud-palette-gray-dark)] [&_.mud-menu-list]:py-0!"
                     >
-                        <div class="!rounded-full overflow-hidden">
-                            <MudImage
-                                Src="/images/nft/nft_payl_koyn_princess.jpg"
-                                Alt="profile image"
-                            />
-                        </div>
-                    </MudButton>
+                        <ActivatorContent>
+                            <div class="!min-w-12 !max-w-12 !h-12 !rounded-full button-profile-gradient !p-[2px]">
+                                <div class="!rounded-full overflow-hidden">
+                                    <MudImage
+                                        Src="/images/nft/nft_payl_koyn_princess.jpg"
+                                        Alt="profile image"
+                                    />
+                                </div>
+                            </div>
+                        </ActivatorContent>
+                        <ChildContent>
+                            <MudMenuItem 
+                                AutoClose="false"
+                                Class="hover:bg-transparent! !border-b !border-[var(--mud-palette-gray-dark)]"
+                            >
+                                <div class="flex items-center justify-between gap-4">
+                                    <div class="!py-[6px] !px-2">
+                                        <MudImage
+                                            Src="@SelectedWallet.Icon"
+                                            Alt="@SelectedWallet.Name"
+                                            Class="object-contained w-6 aspect-square"
+                                        />
+                                    </div>
+                                    <MudIconButton 
+                                        Icon="@IconService.CopyIcon"
+                                        Class="!p-1"
+                                    />
+                                    <MudButton 
+                                        OnClick="OnWalletConnectClicked"
+                                        Class="!capitalize !font-semibold hover:!text-[var(--mud-palette-background)]"
+                                    >
+                                        Switch
+                                    </MudButton>
+                                </div>
+                            </MudMenuItem>
+                            <MudMenuItem 
+                                AutoClose="false"
+                                Class="hover:bg-transparent! !border-b !border-[var(--mud-palette-gray-dark)]"
+                            >
+                                <div class="bg-[var(--mud-palette-gray-darker)] flex flex-col items-center justify-center !p-2 !rounded-sm">
+                                    <MudText Class="!text-xs">
+                                        Wallet Balance
+                                    </MudText>
+                                    <MudText
+                                        Class="!font-bold !text-2xl"
+                                        Style="font-family: Oxanium;"
+                                    >
+                                        ₳ 19.97 
+                                    </MudText>
+                                </div>
+                            </MudMenuItem>
+                            <MudMenuItem 
+                                Href="/gallery"
+                                Class="[&_.mud-menu-item-text]:!flex [&_.mud-menu-item-text]:!items-center [&_.mud-menu-item-text]:!justify-center [&_.mud-menu-item-text]:!gap-2 !border-b !border-[var(--mud-palette-gray-dark)] group"
+                            >
+                                <MudIcon Icon="@IconService.ImageIcon" Class="!text-[var(--mud-palette-dark-darken)] group-hover:!text-[var(--mud-palette-background)]"/>
+                                <MudText Class="!text-sm !font-semibold !text-[var(--mud-palette-dark-darken)] group-hover:!text-[var(--mud-palette-background)]">
+                                    View Gallery
+                                </MudText>
+                            </MudMenuItem>
+                            <MudMenuItem 
+                                OnClick="() => SelectedWallet = null"
+                                Class="[&_.mud-menu-item-text]:!flex [&_.mud-menu-item-text]:!items-center [&_.mud-menu-item-text]:!justify-center [&_.mud-menu-item-text]:!gap-2 group"
+                            >
+                                <MudIcon Icon="@IconService.LogoutIcon" Class="!text-[var(--mud-palette-dark-darken)] group-hover:!text-[var(--mud-palette-error)]"/>
+                                <MudText Class="!text-[var(--mud-palette-dark-darken)] !text-sm !font-semibold group-hover:!text-[var(--mud-palette-error)]">
+                                    Disconnect Wallet
+                                </MudText>
+                            </MudMenuItem>
+                        </ChildContent>
+                    </MudMenu>
                 }
             }
         </div>
