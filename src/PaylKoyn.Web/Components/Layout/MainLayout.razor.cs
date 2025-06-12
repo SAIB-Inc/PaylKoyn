@@ -19,8 +19,8 @@ public partial class MainLayout
             GrayLight = "#EFF1FA",
             GrayDark = "#CBD0DC",
             GrayDarker = "#EEF1F7",
-            DarkLighten = "#CBD0DC",
-            DarkDarken = "#292D32"
+            DarkDarken = "#292D32",
+            Error = "#CF334D"
         },
         Typography = new()
         {
