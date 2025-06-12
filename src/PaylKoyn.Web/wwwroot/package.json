@@ -11,10 +11,10 @@
         "build": "concurrently \"bun run build:styles\" \"bun run build:scripts\""
     },
     "devDependencies": {
-        "@tailwindcss/cli": "^4.1.8",
+        "@tailwindcss/cli": "^4.1.10",
         "concurrently": "^9.1.2",
         "esbuild": "^0.25.5",
-        "tailwindcss": "^4.1.8",
+        "tailwindcss": "^4.1.10",
         "typescript": "^5.8.3"
     }
 }
