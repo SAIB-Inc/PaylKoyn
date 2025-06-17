@@ -31,11 +31,13 @@ echo "cardano-node:3333 is available!"
 
 # Start HAProxy with failure detection
 echo "Starting HAProxy..."
-haproxy -f /etc/haproxy/haproxy.cfg -D -p /var/run/haproxy.pid || handle_error "Failed to start HAProxy"
+# Use a PID file in a writable location
+HAPROXY_PID_FILE="/tmp/haproxy.pid"
+haproxy -f /etc/haproxy/haproxy.cfg -D -p $HAPROXY_PID_FILE || handle_error "Failed to start HAProxy"
 
 # Verify HAProxy started successfully
 sleep 2
-if ! kill -0 $(cat /var/run/haproxy.pid 2>/dev/null) 2>/dev/null; then
+if ! kill -0 $(cat $HAPROXY_PID_FILE 2>/dev/null) 2>/dev/null; then
     handle_error "HAProxy failed to start or died immediately"
 fi
 
@@ -43,7 +45,7 @@ fi
 {
     while true; do
         sleep 10
-        if ! kill -0 $(cat /var/run/haproxy.pid 2>/dev/null) 2>/dev/null; then
+        if ! kill -0 $(cat $HAPROXY_PID_FILE 2>/dev/null) 2>/dev/null; then
             echo "ERROR: HAProxy died unexpectedly!" >&2
             exit 1
         fi
