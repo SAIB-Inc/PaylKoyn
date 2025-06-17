@@ -1,81 +1,42 @@
-# Use the official Microsoft .NET runtime as a parent image
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
-WORKDIR /app
-
-# Use SDK image to build the application
+# Build stage
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-WORKDIR /app
+WORKDIR /src
+
+# Copy entire solution
 COPY . .
 
-
-WORKDIR /app/src/PaylKoyn.Sync
+# Build and publish
+WORKDIR /src/src/PaylKoyn.Sync
 RUN dotnet restore
-RUN dotnet build -c Release -o /app/build
-
-# Publish the application
-FROM build AS publish
 RUN dotnet publish -c Release -o /app/publish
 
-# Final stage/image
-FROM base AS final
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 
-# Install socat, netcat, and sudo for TCP to Unix socket bridge
+# Install HAProxy for stable TCP-Unix socket bridging
 USER root
-RUN apt-get update && apt-get install -y socat netcat-openbsd sudo && rm -rf /var/lib/apt/lists/*
-RUN echo 'app ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        haproxy \
+        netcat-openbsd \
+        sudo && \
+    rm -rf /var/lib/apt/lists/* && \
+    echo 'app ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # Copy published application
-COPY --from=publish /app/publish .
+COPY --from=build /app/publish .
 
-# Create /ipc directory with proper permissions
-RUN mkdir -p /ipc && chown app:app /ipc
+# Copy configuration files
+COPY deployments/paylkoyn-sync/haproxy.cfg /etc/haproxy/haproxy.cfg
+COPY deployments/paylkoyn-sync/startup.sh /app/startup.sh
 
-# Create wrapper script for cardano-node connection bridge
-RUN echo '#!/bin/bash\n\
-\n\
-echo "=== PAYLKOYN.SYNC STARTING ==="\n\
-\n\
-# Ensure /data has proper permissions for mounted volume\n\
-echo "Setting up data directory permissions..."\n\
-sudo chown -R app:app /data 2>/dev/null || true\n\
-\n\
-# Create local Unix socket bridge to cardano-node TCP service\n\
-echo "Setting up cardano-node connection bridge..."\n\
-\n\
-# Ensure socket directory is clean and accessible\n\
-sudo rm -f /ipc/node.socket 2>/dev/null || true\n\
-sudo chown -R app:app /ipc 2>/dev/null || true\n\
-\n\
-# Start socat bridge in background (TCP to Unix socket)\n\
-{\n\
-    echo "Waiting for cardano-node:3333 to be available..."\n\
-    while ! nc -w 1 cardano-node 3333 < /dev/null 2>/dev/null; do\n\
-        echo "Waiting for cardano-node:3333..."\n\
-        sleep 2\n\
-    done\n\
-    \n\
-    echo "cardano-node:3333 available! Starting socket bridge..."\n\
-    while true; do\n\
-        echo "$(date): Starting socat TCP->Unix bridge..."\n\
-        # Clean up socket file before restart\n\
-        sudo rm -f /ipc/node.socket 2>/dev/null || true\n\
-        socat UNIX-LISTEN:/ipc/node.socket,fork,reuseaddr TCP:cardano-node:3333\n\
-        echo "$(date): Socket bridge died, restarting..."\n\
-        sleep 5\n\
-    done\n\
-} &\n\
-\n\
-# Wait for socket bridge to be ready\n\
-echo "Waiting for local socket bridge..."\n\
-sleep 5\n\
-\n\
-echo "Starting PaylKoyn.Sync..."\n\
-export ASPNETCORE_ENVIRONMENT=Railway\n\
-exec dotnet PaylKoyn.Sync.dll "$@"\n\
-' > /entrypoint.sh
+# Create required directories and set permissions
+RUN mkdir -p /ipc /data && \
+    chown -R app:app /ipc /data /etc/haproxy && \
+    chmod +x /app/startup.sh
 
-RUN chmod +x /entrypoint.sh
-
+# Switch to app user
 USER app
-ENTRYPOINT ["/entrypoint.sh"]
+
+ENTRYPOINT ["/app/startup.sh"]
