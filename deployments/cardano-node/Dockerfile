@@ -11,8 +11,8 @@ ENV NETWORK=preview
 ENV RESTORE_SNAPSHOT=true
 
 # Copy configuration files
-COPY deployments/cardano-node/haproxy.cfg /etc/haproxy/haproxy.cfg
-COPY deployments/cardano-node/startup.sh /wrapper-entrypoint.sh
+COPY haproxy.cfg /etc/haproxy/haproxy.cfg
+COPY startup.sh /wrapper-entrypoint.sh
 
 # Set execute permissions
 RUN chmod +x /wrapper-entrypoint.sh
