@@ -11,7 +11,8 @@ using PaylKoyn.Data.Models.Entity;
 namespace PaylKoyn.Sync.Reducers;
 
 public class TransactionSubmissionReducer(
-    IDbContextFactory<PaylKoynDbContext> dbContextFactory
+    IDbContextFactory<PaylKoynDbContext> dbContextFactory,
+    ILogger<TransactionSubmissionReducer> logger
 ) : IReducer<TransactionBySlot>
 {
     public async Task RollBackwardAsync(ulong slot)
@@ -34,10 +35,24 @@ public class TransactionSubmissionReducer(
 
         IEnumerable<string> transactionHashes = [.. transactions.Select(tx => tx.Hash())];
 
-        await dbContext.TransactionSubmissions
-            .Where(ts => ts.Status == TransactionStatus.Inflight && transactionHashes.Contains(ts.Hash))
-            .ExecuteUpdateAsync(ts => ts
-                .SetProperty(t => t.Status, TransactionStatus.Confirmed)
-                .SetProperty(t => t.ConfirmedSlot, currentSlot));
+        var transactionHashesToUpdate = await dbContext.TransactionSubmissions
+           .Where(ts => ts.Status == TransactionStatus.Inflight && transactionHashes.Contains(ts.Hash))
+           .Select(ts => ts.Hash)
+           .ToListAsync();
+
+        if (transactionHashesToUpdate.Count != 0)
+        {
+            await dbContext.TransactionSubmissions
+                .Where(ts => ts.Status == TransactionStatus.Inflight && transactionHashes.Contains(ts.Hash))
+                .ExecuteUpdateAsync(ts => ts
+                    .SetProperty(t => t.Status, TransactionStatus.Confirmed)
+                    .SetProperty(t => t.ConfirmedSlot, currentSlot));
+
+            logger.LogInformation(
+                "Confirmed {Count} transaction(s) at slot {Slot}:\n{Hashes}",
+                transactionHashesToUpdate.Count,
+                currentSlot,
+                string.Join("\n", transactionHashesToUpdate.Select(h => $"  - {h}")));
+        }
     }
 }
