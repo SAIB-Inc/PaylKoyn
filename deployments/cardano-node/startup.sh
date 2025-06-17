@@ -22,13 +22,15 @@ start_haproxy() {
             echo "Socket found! Starting HAProxy on port 3333..."
             
             # Start HAProxy in daemon mode with PID file
-            haproxy -f /etc/haproxy/haproxy.cfg -D -p /var/run/haproxy.pid || {
+            # Use a PID file in a writable location
+            HAPROXY_PID_FILE="/tmp/haproxy.pid"
+            haproxy -f /etc/haproxy/haproxy.cfg -D -p $HAPROXY_PID_FILE || {
                 handle_error "Failed to start HAProxy"
             }
             
             # Verify HAProxy started
             sleep 2
-            if ! kill -0 $(cat /var/run/haproxy.pid 2>/dev/null) 2>/dev/null; then
+            if ! kill -0 $(cat $HAPROXY_PID_FILE 2>/dev/null) 2>/dev/null; then
                 handle_error "HAProxy failed to start or died immediately"
             fi
             
@@ -37,7 +39,7 @@ start_haproxy() {
             # Monitor HAProxy health
             while true; do
                 sleep 10
-                if ! kill -0 $(cat /var/run/haproxy.pid 2>/dev/null) 2>/dev/null; then
+                if ! kill -0 $(cat $HAPROXY_PID_FILE 2>/dev/null) 2>/dev/null; then
                     echo "ERROR: HAProxy died unexpectedly!" >&2
                     exit 1
                 fi
