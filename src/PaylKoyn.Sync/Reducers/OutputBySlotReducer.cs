@@ -6,7 +6,7 @@ using Chrysalis.Cbor.Extensions.Cardano.Core.Transaction;
 using Chrysalis.Cbor.Serialization;
 using Chrysalis.Cbor.Types.Cardano.Core.Transaction;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using PaylKoyn.Data.Models;
 using PaylKoyn.Data.Models.Entity;
 using PaylKoyn.Data.Utils;
@@ -21,25 +21,26 @@ public class OutputBySlotReducer(
     public async Task RollBackwardAsync(ulong slot)
     {
         await using PaylKoynDbContext dbContext = await dbContextFactory.CreateDbContextAsync();
-        await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync();
-        try
-        {
-            await dbContext.OutputsBySlot.Where(e => e.Slot >= slot).ExecuteDeleteAsync();
+        IQueryable<OutputBySlot> outputsToDelete = dbContext.OutputsBySlot.Where(e => e.Slot >= slot).AsNoTracking();
+        dbContext.OutputsBySlot.RemoveRange(outputsToDelete);
 
-            await dbContext.OutputsBySlot
-                .Where(e => e.Slot < slot && e.SpentSlot >= slot)
-                .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(e => e.SpentTxHash, string.Empty)
-                    .SetProperty(e => e.SpentSlot, (ulong?)null)
-                );
+        IEnumerable<OutputBySlot> outputsToUnSpend = await dbContext.OutputsBySlot
+            .Where(e => e.Slot < slot && e.SpentSlot >= slot)
+            .ToListAsync();
 
-            await transaction.CommitAsync();
-        }
-        catch
+        outputsToUnSpend.ToList().ForEach(spentOutput =>
         {
-            await transaction.RollbackAsync();
-            throw;
-        }
+            OutputBySlot unspentOutput = spentOutput with
+            {
+                SpentTxHash = string.Empty,
+                SpentSlot = null
+            };
+
+            dbContext.OutputsBySlot.Remove(spentOutput);
+            dbContext.OutputsBySlot.Add(unspentOutput);
+        });
+
+        await dbContext.SaveChangesAsync();
     }
 
     public async Task RollForwardAsync(Block block)
@@ -129,7 +130,11 @@ public class OutputBySlotReducer(
             OutputBySlot? existingOutput = dbContext.OutputsBySlot.Local
                 .FirstOrDefault(e => e.OutRef == resolvedInputByTx.resolvedInput.OutRef);
 
-            OutputBySlot updatedOutput = resolvedInputByTx.resolvedInput with { SpentTxHash = resolvedInputByTx.spentTxHash, SpentSlot = currentSlot };
+            OutputBySlot updatedOutput = resolvedInputByTx.resolvedInput with
+            {
+                SpentTxHash = resolvedInputByTx.spentTxHash,
+                SpentSlot = currentSlot
+            };
 
             if (existingOutput != null)
             {

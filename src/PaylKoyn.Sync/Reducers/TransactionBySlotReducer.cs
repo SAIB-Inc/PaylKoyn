@@ -25,6 +25,7 @@ public class TransactionBySlotReducer(
             .Where(x => x.Slot >= slot)
             .ExecuteDeleteAsync();
     }
+
     public async Task RollForwardAsync(Block block)
     {
         await using PaylKoynDbContext dbContext = await dbContextFactory.CreateDbContextAsync();
