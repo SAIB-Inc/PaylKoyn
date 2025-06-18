@@ -34,6 +34,7 @@ public class PaylKoynDbContext(
             entity.HasIndex(e => e.Slot);
             entity.HasIndex(e => e.SpentSlot);
             entity.HasIndex(e => e.SpentTxHash);
+            entity.HasIndex(e => new { e.SpentSlot, e.Slot });
         });
 
         modelBuilder.Entity<TransactionSubmission>(entity =>

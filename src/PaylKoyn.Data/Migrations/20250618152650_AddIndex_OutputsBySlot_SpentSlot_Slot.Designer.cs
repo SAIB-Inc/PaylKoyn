@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PaylKoyn.Data.Models;
@@ -11,9 +12,11 @@ using PaylKoyn.Data.Models;
 namespace PaylKoyn.Data.Migrations
 {
     [DbContext(typeof(PaylKoynDbContext))]
-    partial class PaylKoynDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250618152650_AddIndex_OutputsBySlot_SpentSlot_Slot")]
+    partial class AddIndex_OutputsBySlot_SpentSlot_Slot
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
