@@ -1,6 +1,7 @@
 using System.Runtime;
 using Argus.Sync.Data.Models;
 using Argus.Sync.Extensions;
+using Microsoft.EntityFrameworkCore;
 using PaylKoyn.Data.Models;
 using PaylKoyn.Sync.Workers;
 
@@ -19,5 +20,8 @@ builder.Services.AddHostedService<TransactionSubmissionWorker>();
 
 WebApplication app = builder.Build();
 
+using IServiceScope scope = app.Services.CreateScope();
+PaylKoynDbContext dbContext = scope.ServiceProvider.GetRequiredService<PaylKoynDbContext>();
+dbContext.Database.Migrate();
 
 app.Run();
