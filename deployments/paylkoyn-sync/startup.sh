@@ -27,10 +27,19 @@ CARDANO_PID=$!
 
 echo "Cardano-node started with PID: $CARDANO_PID"
 
+# Check if this is first run (no blockchain data exists)
+if [ ! -d "/data/db" ] || [ -z "$(ls -A /data/db 2>/dev/null)" ]; then
+    echo "First run detected - no existing blockchain data found"
+    echo "This may take 20-30 minutes for Mithril snapshot download and restoration..."
+    MAX_SOCKET_WAIT=3600  # 60 minutes timeout for first run
+else
+    echo "Existing blockchain data found - normal startup"
+    MAX_SOCKET_WAIT=300  # 5 minutes timeout for restart
+fi
+
 # Wait for socket creation with timeout
 echo "Waiting for cardano-node socket at ${CARDANO_SOCKET_PATH:-/ipc/node.socket}..."
 SOCKET_WAIT=0
-MAX_SOCKET_WAIT=180  # 3 minutes timeout
 
 while [ ! -S "${CARDANO_SOCKET_PATH:-/ipc/node.socket}" ]; do
     # Check if cardano-node is still running
@@ -43,8 +52,13 @@ while [ ! -S "${CARDANO_SOCKET_PATH:-/ipc/node.socket}" ]; do
         handle_error "Timeout waiting for cardano-node socket after ${MAX_SOCKET_WAIT} seconds"
     fi
     
-    if [ $((SOCKET_WAIT % 10)) -eq 0 ]; then
-        echo "Still waiting for socket... (${SOCKET_WAIT}s elapsed)"
+    if [ $((SOCKET_WAIT % 30)) -eq 0 ] && [ $SOCKET_WAIT -gt 0 ]; then
+        MINUTES=$((SOCKET_WAIT / 60))
+        SECONDS=$((SOCKET_WAIT % 60))
+        echo "Still waiting for cardano-node initialization... (${MINUTES}m ${SECONDS}s elapsed)"
+        if [ $MAX_SOCKET_WAIT -eq 3600 ]; then
+            echo "  Note: First run with Mithril snapshot download can take 20-30 minutes"
+        fi
     fi
     
     sleep 1
