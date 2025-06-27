@@ -1,42 +1,50 @@
-# Build stage
+# Build stage for PaylKoyn.Sync
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 # Copy entire solution
 COPY . .
 
-# Build and publish
+# Build and publish PaylKoyn.Sync
 WORKDIR /src/src/PaylKoyn.Sync
 RUN dotnet restore
 RUN dotnet publish -c Release -o /app/publish
 
-# Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
-WORKDIR /app
+# Runtime stage based on Blink Labs cardano-node
+FROM ghcr.io/blinklabs-io/cardano-node:10.4.1-3
 
-# Install HAProxy for stable TCP-Unix socket bridging
+# Install .NET 9.0 runtime dependencies
 USER root
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        haproxy \
-        netcat-openbsd \
-        sudo && \
-    rm -rf /var/lib/apt/lists/* && \
-    echo 'app ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+        libicu72 \
+        libssl3 \
+        ca-certificates \
+        curl && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy published application
-COPY --from=build /app/publish .
+# Install .NET 9.0 runtime
+RUN curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin \
+    --channel 9.0 \
+    --runtime aspnetcore \
+    --install-dir /usr/share/dotnet \
+    --no-path && \
+    ln -s /usr/share/dotnet/dotnet /usr/local/bin/
 
-# Copy configuration files
-COPY deployments/paylkoyn-sync/haproxy.cfg /etc/haproxy/haproxy.cfg
+# Copy PaylKoyn.Sync from build stage
+COPY --from=build /app/publish /app/paylkoyn-sync
+
+# Copy startup script
 COPY deployments/paylkoyn-sync/startup.sh /app/startup.sh
 
-# Create required directories and set permissions
-RUN mkdir -p /ipc /data && \
-    chown -R app:app /ipc /data /etc/haproxy && \
+# Create necessary directories
+RUN mkdir -p /data /ipc && \
     chmod +x /app/startup.sh
 
-# Switch to app user
-USER app
+# Environment variables for cardano-node
+ENV NETWORK=preview
+ENV RESTORE_SNAPSHOT=true
+ENV CARDANO_SOCKET_PATH=/ipc/node.socket
 
+# Use our unified startup script
 ENTRYPOINT ["/app/startup.sh"]

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== PAYLKOYN.SYNC STARTING ==="
+echo "=== UNIFIED PAYLKOYN-SYNC CONTAINER STARTING ==="
 
 # Function to handle errors
 handle_error() {
@@ -9,63 +9,104 @@ handle_error() {
     exit 1
 }
 
-# Ensure proper permissions
-echo "Setting up permissions..."
-sudo chown -R app:app /data /ipc 2>/dev/null || true
-sudo rm -f /ipc/node.socket 2>/dev/null || true
-
-# Wait for cardano-node with timeout
-echo "Waiting for cardano-node:3333..."
-RETRY_COUNT=0
-MAX_RETRIES=30
-while ! nc -w 1 cardano-node 3333 < /dev/null 2>/dev/null; do
-    RETRY_COUNT=$((RETRY_COUNT + 1))
-    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-        handle_error "cardano-node:3333 not available after $MAX_RETRIES attempts"
-    fi
-    echo "cardano-node not ready, attempt $RETRY_COUNT/$MAX_RETRIES..."
-    sleep 2
-done
-
-echo "cardano-node:3333 is available!"
-
-# Start HAProxy with failure detection
-echo "Starting HAProxy..."
-# Use a PID file in a writable location
-HAPROXY_PID_FILE="/tmp/haproxy.pid"
-haproxy -f /etc/haproxy/haproxy.cfg -D -p $HAPROXY_PID_FILE || handle_error "Failed to start HAProxy"
-
-# Verify HAProxy started successfully
-sleep 2
-if ! kill -0 $(cat $HAPROXY_PID_FILE 2>/dev/null) 2>/dev/null; then
-    handle_error "HAProxy failed to start or died immediately"
+# Ensure data directory has correct permissions
+if [ -d "/data" ]; then
+    echo "Setting permissions on /data directory..."
+    chown -R $(id -u):$(id -g) /data 2>/dev/null || true
 fi
 
-# Monitor HAProxy in background
-{
-    while true; do
-        sleep 10
-        if ! kill -0 $(cat $HAPROXY_PID_FILE 2>/dev/null) 2>/dev/null; then
-            echo "ERROR: HAProxy died unexpectedly!" >&2
-            exit 1
-        fi
-    done
-} &
+# Start cardano-node using Blink Labs entrypoint in background
+echo "Starting cardano-node with Blink Labs entrypoint..."
+echo "Network: ${NETWORK:-preview}"
+echo "Restore snapshot: ${RESTORE_SNAPSHOT:-true}"
+echo "Socket path: ${CARDANO_SOCKET_PATH:-/ipc/node.socket}"
 
-# Verify socket is created
-SOCKET_RETRY=0
-while [ ! -S /ipc/node.socket ]; do
-    SOCKET_RETRY=$((SOCKET_RETRY + 1))
-    if [ $SOCKET_RETRY -ge 10 ]; then
-        handle_error "HAProxy failed to create Unix socket after 10 attempts"
+# Run the Blink Labs entrypoint in background
+/usr/local/bin/entrypoint "$@" &
+CARDANO_PID=$!
+
+echo "Cardano-node started with PID: $CARDANO_PID"
+
+# Wait for socket creation with timeout
+echo "Waiting for cardano-node socket at ${CARDANO_SOCKET_PATH:-/ipc/node.socket}..."
+SOCKET_WAIT=0
+MAX_SOCKET_WAIT=180  # 3 minutes timeout
+
+while [ ! -S "${CARDANO_SOCKET_PATH:-/ipc/node.socket}" ]; do
+    # Check if cardano-node is still running
+    if ! kill -0 $CARDANO_PID 2>/dev/null; then
+        handle_error "cardano-node process died before creating socket"
     fi
-    echo "Waiting for HAProxy to create socket, attempt $SOCKET_RETRY/10..."
+    
+    SOCKET_WAIT=$((SOCKET_WAIT + 1))
+    if [ $SOCKET_WAIT -ge $MAX_SOCKET_WAIT ]; then
+        handle_error "Timeout waiting for cardano-node socket after ${MAX_SOCKET_WAIT} seconds"
+    fi
+    
+    if [ $((SOCKET_WAIT % 10)) -eq 0 ]; then
+        echo "Still waiting for socket... (${SOCKET_WAIT}s elapsed)"
+    fi
+    
     sleep 1
 done
 
-echo "HAProxy socket ready at /ipc/node.socket"
+echo "Socket ready at ${CARDANO_SOCKET_PATH:-/ipc/node.socket}!"
 
-# Start the application
+# Give cardano-node a moment to fully initialize
+sleep 5
+
+# Start PaylKoyn.Sync
 echo "Starting PaylKoyn.Sync..."
+cd /app/paylkoyn-sync
 export ASPNETCORE_ENVIRONMENT=Railway
-exec dotnet PaylKoyn.Sync.dll "$@"
+export CardanoNodeConnection__UnixSocket__Path=${CARDANO_SOCKET_PATH:-/ipc/node.socket}
+
+# Start PaylKoyn.Sync in background
+dotnet PaylKoyn.Sync.dll &
+SYNC_PID=$!
+
+echo "PaylKoyn.Sync started with PID: $SYNC_PID"
+
+# Function to cleanup on exit
+cleanup() {
+    echo "Shutting down..."
+    if [ ! -z "${SYNC_PID:-}" ]; then
+        echo "Stopping PaylKoyn.Sync (PID: $SYNC_PID)..."
+        kill $SYNC_PID 2>/dev/null || true
+    fi
+    if [ ! -z "${CARDANO_PID:-}" ]; then
+        echo "Stopping cardano-node (PID: $CARDANO_PID)..."
+        kill $CARDANO_PID 2>/dev/null || true
+    fi
+    # Wait for processes to terminate
+    wait
+    echo "Shutdown complete"
+}
+
+# Set up signal handlers
+trap cleanup EXIT SIGTERM SIGINT
+
+# Monitor both processes
+echo "Monitoring both processes..."
+while true; do
+    # Check cardano-node
+    if ! kill -0 $CARDANO_PID 2>/dev/null; then
+        echo "ERROR: cardano-node process died unexpectedly"
+        kill $SYNC_PID 2>/dev/null || true
+        exit 1
+    fi
+    
+    # Check PaylKoyn.Sync
+    if ! kill -0 $SYNC_PID 2>/dev/null; then
+        echo "ERROR: PaylKoyn.Sync process died unexpectedly"
+        kill $CARDANO_PID 2>/dev/null || true
+        exit 1
+    fi
+    
+    # Brief status every 30 seconds
+    if [ $((SECONDS % 30)) -eq 0 ]; then
+        echo "Status: Both processes running (cardano-node: $CARDANO_PID, sync: $SYNC_PID)"
+    fi
+    
+    sleep 5
+done
