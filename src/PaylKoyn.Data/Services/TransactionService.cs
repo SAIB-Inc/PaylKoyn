@@ -47,36 +47,26 @@ public class TransactionService()
         return transferTemplate;
     }
 
-    public TransactionTemplate<MultiAssetTransferParams> MultiAssetTransfer(ICardanoDataProvider provider)
+    public Task<Transaction> MultiAssetTransfer(MultiAssetTransferParams parameters, ICardanoDataProvider provider)
     {
-        TransactionTemplate<MultiAssetTransferParams> transferTemplate = TransactionTemplateBuilder<MultiAssetTransferParams>.Create(provider)
-            .AddConfigGenerator((parameters) =>
+        TransactionTemplateBuilder<MultiAssetTransferParams> transferTemplate = TransactionTemplateBuilder<MultiAssetTransferParams>.Create(provider)
+            .AddInput((options, _) =>
             {
-                List<(InputConfig<MultiAssetTransferParams>, List<MintConfig<MultiAssetTransferParams>>, List<OutputConfig<MultiAssetTransferParams>>)> configs = [];
-                InputConfig<MultiAssetTransferParams> inputConfig = (options, _) =>
+                options.From = parameters.From;
+            });
+
+            foreach (Recipient recipient in parameters.Recipients)
+            {
+                transferTemplate.AddOutput((options, _, _) =>
                 {
-                    options.From = parameters.From;
-                };
+                    options.To = recipient.Address;
+                    options.Amount = AssetUtils.ConvertToLovelaceWithMultiAsset(recipient.Assets);
+                });
+            }
 
-                List<OutputConfig<MultiAssetTransferParams>> outputConfigs = [];
-                foreach (Recipient recipient in parameters.Recipients)
-                {
-                    OutputConfig<MultiAssetTransferParams> outputConfig = (options, _, _) =>
-                    {
-                        options.To = recipient.Address;
-                        options.Amount = AssetUtils.ConvertToLovelaceWithMultiAsset(recipient.Assets);
-                    };
-                    outputConfigs.Add(outputConfig);
-                }
+        TransactionTemplate<MultiAssetTransferParams> transfer = transferTemplate.Build();
 
-                configs.Add((inputConfig, [], outputConfigs));
-
-                return configs;
-
-            })
-            .Build();
-
-        return transferTemplate;
+        return transfer(parameters);
     }
 
     public List<Transaction> UploadFile(
