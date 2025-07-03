@@ -7,8 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Argus.Sync" Version="0.3.5-alpha" />
-    <PackageReference Include="Chrysalis" Version="0.7.9" />
+    <PackageReference Include="Argus.Sync" Version="0.3.7-alpha" />
+    <PackageReference Include="Chrysalis" Version="0.7.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.6">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
