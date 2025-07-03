@@ -93,10 +93,9 @@ public class AssetTransferService(
         List<Recipient> recipients,
         PrivateKey privateKey)
     {
-        TransactionTemplate<MultiAssetTransferParams> transferTemplate = transactionService.MultiAssetTransfer(cardanoDataProvider);
         MultiAssetTransferParams transferParams = new(fromAddress, recipients);
 
-        Transaction unsignedTransaction = await transferTemplate(transferParams);
+        Transaction unsignedTransaction = await transactionService.MultiAssetTransfer(transferParams, cardanoDataProvider);
         Transaction signedTransaction = unsignedTransaction.Sign(privateKey);
 
         return signedTransaction;
