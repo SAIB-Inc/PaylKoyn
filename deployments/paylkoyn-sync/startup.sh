@@ -1,169 +1,314 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== UNIFIED PAYLKOYN-SYNC CONTAINER STARTING ==="
+# ===== CONFIGURATION =====
+readonly SCRIPT_NAME="paylkoyn-sync-startup"
+readonly CARDANO_SOCKET_PATH="${CARDANO_SOCKET_PATH:-/ipc/node.socket}"
+readonly PAYLKOYN_SYNC_DIR="${PAYLKOYN_SYNC_DIR:-/app/paylkoyn-sync}"
+readonly DATA_DIR="/data"
 
-# Function to handle errors
+# Timeouts (in seconds)
+readonly CHUNK_VALIDATION_TIMEOUT_AFTER_COMPLETE=600  # 10 minutes after validation
+readonly SOCKET_READY_TIMEOUT=60                      # 1 minute after socket exists
+readonly PROCESS_CHECK_INTERVAL=5                     # Check processes every 5 seconds
+readonly STATUS_REPORT_INTERVAL=30                    # Report status every 30 seconds
+
+# ===== FUNCTIONS =====
+
+# Logging functions
+log_info() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] $*"
+}
+
+log_error() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" >&2
+}
+
 handle_error() {
-    echo "ERROR: $1" >&2
+    log_error "$1"
     exit 1
 }
 
-# Ensure data directory has correct permissions
-if [ -d "/data" ]; then
-    echo "Setting permissions on /data directory..."
-    chown -R $(id -u):$(id -g) /data 2>/dev/null || true
-fi
-
-# Start cardano-node using Blink Labs entrypoint in background
-echo "Starting cardano-node with Blink Labs entrypoint..."
-echo "Network: ${NETWORK:-preview}"
-echo "Restore snapshot: ${RESTORE_SNAPSHOT:-true}"
-echo "Socket path: ${CARDANO_SOCKET_PATH:-/ipc/node.socket}"
-
-# Run the Blink Labs entrypoint in background
-/usr/local/bin/entrypoint "$@" &
-CARDANO_PID=$!
-
-echo "Cardano-node started with PID: $CARDANO_PID"
-
-# Check if this is first run (no blockchain data exists)
-if [ ! -d "/data/db" ] || [ -z "$(ls -A /data/db 2>/dev/null)" ]; then
-    echo "First run detected - no existing blockchain data found"
-    echo "This may take 20-30 minutes for Mithril snapshot download and restoration..."
-    MAX_SOCKET_WAIT=3600  # 60 minutes timeout for first run
-else
-    echo "Existing blockchain data found - normal startup"
-    MAX_SOCKET_WAIT=300  # 5 minutes timeout for restart
-fi
-
-# Wait for socket creation with smart timeout
-echo "Waiting for cardano-node socket at ${CARDANO_SOCKET_PATH:-/ipc/node.socket}..."
-TOTAL_WAIT=0
-SOCKET_TIMEOUT_STARTED=false
-SOCKET_TIMEOUT_WAIT=0
-SOCKET_TIMEOUT_MAX=600  # 10 minutes after chunk validation completes
-
-while [ ! -S "${CARDANO_SOCKET_PATH:-/ipc/node.socket}" ]; do
-    # Check if cardano-node is still running
-    if ! kill -0 $CARDANO_PID 2>/dev/null; then
-        handle_error "cardano-node process died before creating socket"
+# Function to capture cardano-node output from various sources
+capture_node_output() {
+    local lines="${1:-20}"
+    local output=""
+    
+    # Try journalctl first
+    if command -v journalctl >/dev/null 2>&1; then
+        output=$(journalctl -u cardano-node --since "10 seconds ago" 2>/dev/null || true)
     fi
     
-    TOTAL_WAIT=$((TOTAL_WAIT + 1))
-    
-    # Check if chunk validation is complete (100%)
-    if [ "$SOCKET_TIMEOUT_STARTED" = false ]; then
-        # Try to capture cardano-node output - check multiple possible sources
-        NODE_OUTPUT=""
-        if command -v journalctl >/dev/null 2>&1; then
-            NODE_OUTPUT=$(journalctl -u cardano-node --since "10 seconds ago" 2>/dev/null || true)
-        fi
-        if [ -z "$NODE_OUTPUT" ] && command -v docker >/dev/null 2>&1; then
-            NODE_OUTPUT=$(docker logs cardano-node --tail 20 2>/dev/null || true)
-        fi
-        if [ -z "$NODE_OUTPUT" ]; then
-            NODE_OUTPUT=$(tail -n 20 /proc/$CARDANO_PID/fd/1 2>/dev/null || true)
-        fi
-        
-        # Check for chunk validation progress
-        if echo "$NODE_OUTPUT" | grep -q "Validating chunk\|Validated chunk"; then
-            # Extract progress percentage if available
-            PROGRESS=$(echo "$NODE_OUTPUT" | grep -oE "Progress: [0-9]+\.[0-9]+%" | tail -1 | grep -oE "[0-9]+\.[0-9]+" || true)
-            if [ ! -z "$PROGRESS" ]; then
-                echo "Chunk validation progress: ${PROGRESS}%"
-                # Check if validation is complete
-                if (( $(echo "$PROGRESS >= 99.9" | bc -l 2>/dev/null || echo "0") )); then
-                    echo "Chunk validation complete! Starting socket timeout..."
-                    SOCKET_TIMEOUT_STARTED=true
-                fi
-            fi
-        elif echo "$NODE_OUTPUT" | grep -q "Chain extended, new tip"; then
-            # If we see chain tips being processed, validation is likely complete
-            echo "Chain sync detected - starting socket timeout..."
-            SOCKET_TIMEOUT_STARTED=true
-        fi
-    else
-        # Socket timeout has started, count down
-        SOCKET_TIMEOUT_WAIT=$((SOCKET_TIMEOUT_WAIT + 1))
-        if [ $SOCKET_TIMEOUT_WAIT -ge $SOCKET_TIMEOUT_MAX ]; then
-            handle_error "Timeout waiting for cardano-node socket after chunk validation completed (${SOCKET_TIMEOUT_MAX} seconds)"
-        fi
+    # Try docker logs if journalctl didn't work
+    if [ -z "$output" ] && command -v docker >/dev/null 2>&1; then
+        output=$(docker logs cardano-node --tail "$lines" 2>/dev/null || true)
     fi
     
-    # Status updates
-    if [ $((TOTAL_WAIT % 30)) -eq 0 ] && [ $TOTAL_WAIT -gt 0 ]; then
-        MINUTES=$((TOTAL_WAIT / 60))
-        SECONDS=$((TOTAL_WAIT % 60))
-        echo "Still waiting for cardano-node... (${MINUTES}m ${SECONDS}s elapsed)"
-        if [ "$SOCKET_TIMEOUT_STARTED" = false ]; then
-            echo "  Note: Waiting for chunk validation to complete (no timeout until 100%)"
-        else
-            REMAINING=$((SOCKET_TIMEOUT_MAX - SOCKET_TIMEOUT_WAIT))
-            echo "  Note: Chunk validation complete, waiting for socket (timeout in ${REMAINING}s)"
-        fi
+    # Try process output as last resort
+    if [ -z "$output" ] && [ -n "${CARDANO_PID:-}" ]; then
+        output=$(tail -n "$lines" "/proc/$CARDANO_PID/fd/1" 2>/dev/null || true)
     fi
     
-    sleep 1
-done
-
-echo "Socket ready at ${CARDANO_SOCKET_PATH:-/ipc/node.socket}!"
-
-# Give cardano-node a moment to fully initialize
-sleep 5
-
-# Start PaylKoyn.Sync
-echo "Starting PaylKoyn.Sync..."
-cd /app/paylkoyn-sync
-export ASPNETCORE_ENVIRONMENT=Railway
-export CardanoNodeConnection__UnixSocket__Path=${CARDANO_SOCKET_PATH:-/ipc/node.socket}
-
-# Start PaylKoyn.Sync in background
-dotnet PaylKoyn.Sync.dll &
-SYNC_PID=$!
-
-echo "PaylKoyn.Sync started with PID: $SYNC_PID"
-
-# Function to cleanup on exit
-cleanup() {
-    echo "Shutting down..."
-    if [ ! -z "${SYNC_PID:-}" ]; then
-        echo "Stopping PaylKoyn.Sync (PID: $SYNC_PID)..."
-        kill $SYNC_PID 2>/dev/null || true
-    fi
-    if [ ! -z "${CARDANO_PID:-}" ]; then
-        echo "Stopping cardano-node (PID: $CARDANO_PID)..."
-        kill $CARDANO_PID 2>/dev/null || true
-    fi
-    # Wait for processes to terminate
-    wait
-    echo "Shutdown complete"
+    echo "$output"
 }
 
-# Set up signal handlers
+# Check if process is running
+is_process_running() {
+    local pid="$1"
+    kill -0 "$pid" 2>/dev/null
+}
+
+# Setup environment
+setup_environment() {
+    log_info "=== UNIFIED PAYLKOYN-SYNC CONTAINER STARTING ==="
+    
+    # Ensure data directory has correct permissions
+    if [ -d "$DATA_DIR" ]; then
+        log_info "Setting permissions on $DATA_DIR directory..."
+        chown -R "$(id -u):$(id -g)" "$DATA_DIR" 2>/dev/null || true
+    fi
+    
+    # Display configuration
+    log_info "Configuration:"
+    log_info "  Network: ${NETWORK:-preview}"
+    log_info "  Restore snapshot: ${RESTORE_SNAPSHOT:-true}"
+    log_info "  Socket path: $CARDANO_SOCKET_PATH"
+    log_info "  PaylKoyn sync dir: $PAYLKOYN_SYNC_DIR"
+}
+
+# Start cardano-node
+start_cardano_node() {
+    log_info "Starting cardano-node with Blink Labs entrypoint..."
+    
+    /usr/local/bin/entrypoint "$@" &
+    CARDANO_PID=$!
+    
+    log_info "Cardano-node started with PID: $CARDANO_PID"
+}
+
+# Wait for cardano-node to be ready
+wait_for_cardano_ready() {
+    local total_wait=0
+    local socket_timeout_started=false
+    local socket_timeout_wait=0
+    local last_progress=""
+    
+    log_info "Waiting for cardano-node to be ready..."
+    
+    while true; do
+        # Check if cardano-node is still running
+        if ! is_process_running "$CARDANO_PID"; then
+            handle_error "cardano-node process died during initialization"
+        fi
+        
+        total_wait=$((total_wait + 1))
+        
+        # Capture node output once
+        local node_output
+        node_output=$(capture_node_output 50)
+        
+        # Check various states
+        if [ ! -S "$CARDANO_SOCKET_PATH" ]; then
+            # Socket doesn't exist yet - check for chunk validation
+            if [ "$socket_timeout_started" = false ]; then
+                # Look for chunk validation progress
+                if echo "$node_output" | grep -q "Validating chunk\|Validated chunk"; then
+                    local progress
+                    progress=$(echo "$node_output" | grep -oE "Progress: [0-9]+\.[0-9]+%" | tail -1 | grep -oE "[0-9]+\.[0-9]+" || true)
+                    if [ -n "$progress" ] && [ "$progress" != "$last_progress" ]; then
+                        log_info "Chunk validation progress: ${progress}%"
+                        last_progress="$progress"
+                        
+                        # Check if validation is complete (using integer comparison)
+                        local progress_int
+                        progress_int=$(echo "$progress" | cut -d. -f1)
+                        if [ "$progress_int" -ge 99 ]; then
+                            log_info "Chunk validation complete! Starting timeout..."
+                            socket_timeout_started=true
+                        fi
+                    fi
+                elif echo "$node_output" | grep -q "Chain extended, new tip"; then
+                    log_info "Chain sync detected - starting timeout..."
+                    socket_timeout_started=true
+                fi
+            else
+                # Timeout has started
+                socket_timeout_wait=$((socket_timeout_wait + 1))
+                if [ $socket_timeout_wait -ge $CHUNK_VALIDATION_TIMEOUT_AFTER_COMPLETE ]; then
+                    handle_error "Timeout waiting for socket after chunk validation ($CHUNK_VALIDATION_TIMEOUT_AFTER_COMPLETE seconds)"
+                fi
+            fi
+        else
+            # Socket exists - check if it's ready to accept connections
+            if echo "$node_output" | grep -qE "(LocalSocketUp|TrServerStarted).*${CARDANO_SOCKET_PATH}"; then
+                log_info "Cardano-node socket is ready and accepting connections!"
+                return 0
+            fi
+            
+            # Socket exists but not ready yet
+            local socket_wait=$((total_wait - socket_timeout_wait))
+            if [ $socket_wait -ge $SOCKET_READY_TIMEOUT ]; then
+                handle_error "Socket exists but not accepting connections after $SOCKET_READY_TIMEOUT seconds"
+            fi
+        fi
+        
+        # Status updates
+        if [ $((total_wait % STATUS_REPORT_INTERVAL)) -eq 0 ] && [ $total_wait -gt 0 ]; then
+            local minutes=$((total_wait / 60))
+            local seconds=$((total_wait % 60))
+            log_info "Still waiting... (${minutes}m ${seconds}s elapsed)"
+            
+            if [ ! -S "$CARDANO_SOCKET_PATH" ]; then
+                if [ "$socket_timeout_started" = false ]; then
+                    log_info "  Waiting for chunk validation to complete (no timeout until 100%)"
+                else
+                    local remaining=$((CHUNK_VALIDATION_TIMEOUT_AFTER_COMPLETE - socket_timeout_wait))
+                    log_info "  Chunk validation complete, waiting for socket (timeout in ${remaining}s)"
+                fi
+            else
+                log_info "  Socket exists, waiting for it to accept connections..."
+            fi
+        fi
+        
+        sleep 1
+    done
+}
+
+# Validate PaylKoyn.Sync environment
+validate_sync_environment() {
+    log_info "Validating PaylKoyn.Sync environment..."
+    
+    # Check directory exists
+    if [ ! -d "$PAYLKOYN_SYNC_DIR" ]; then
+        handle_error "PaylKoyn.Sync directory not found at $PAYLKOYN_SYNC_DIR"
+    fi
+    
+    # Check executable exists
+    if [ ! -f "$PAYLKOYN_SYNC_DIR/PaylKoyn.Sync.dll" ]; then
+        handle_error "PaylKoyn.Sync.dll not found in $PAYLKOYN_SYNC_DIR"
+    fi
+    
+    # Verify socket is accessible
+    if [ ! -S "$CARDANO_SOCKET_PATH" ]; then
+        handle_error "Socket not found at $CARDANO_SOCKET_PATH after validation"
+    fi
+    
+    # Log environment variables
+    log_info "Environment variables:"
+    log_info "  ASPNETCORE_ENVIRONMENT=Railway"
+    log_info "  CardanoNodeConnection__UnixSocket__Path=$CARDANO_SOCKET_PATH"
+    log_info "  ConnectionStrings__DefaultConnection=${ConnectionStrings__DefaultConnection:-[not set]}"
+}
+
+# Start PaylKoyn.Sync
+start_paylkoyn_sync() {
+    log_info "Starting PaylKoyn.Sync..."
+    
+    cd "$PAYLKOYN_SYNC_DIR" || handle_error "Failed to change to PaylKoyn.Sync directory"
+    
+    # Set environment
+    export ASPNETCORE_ENVIRONMENT=Railway
+    export CardanoNodeConnection__UnixSocket__Path="$CARDANO_SOCKET_PATH"
+    
+    # Start with output capture
+    dotnet PaylKoyn.Sync.dll 2>&1 | sed 's/^/[SYNC] /' &
+    SYNC_PID=$!
+    
+    # Give it a moment to start and verify it's running
+    sleep 2
+    if ! is_process_running "$SYNC_PID"; then
+        handle_error "PaylKoyn.Sync failed to start or crashed immediately"
+    fi
+    
+    log_info "PaylKoyn.Sync started successfully with PID: $SYNC_PID"
+}
+
+# Cleanup function
+cleanup() {
+    log_info "Shutting down..."
+    
+    # Stop PaylKoyn.Sync
+    if [ -n "${SYNC_PID:-}" ] && is_process_running "$SYNC_PID"; then
+        log_info "Stopping PaylKoyn.Sync (PID: $SYNC_PID)..."
+        kill "$SYNC_PID" 2>/dev/null || true
+        
+        # Wait up to 10 seconds for graceful shutdown
+        local wait_count=0
+        while is_process_running "$SYNC_PID" && [ $wait_count -lt 10 ]; do
+            sleep 1
+            wait_count=$((wait_count + 1))
+        done
+        
+        # Force kill if still running
+        if is_process_running "$SYNC_PID"; then
+            log_info "Force killing PaylKoyn.Sync..."
+            kill -9 "$SYNC_PID" 2>/dev/null || true
+        fi
+    fi
+    
+    # Stop cardano-node
+    if [ -n "${CARDANO_PID:-}" ] && is_process_running "$CARDANO_PID"; then
+        log_info "Stopping cardano-node (PID: $CARDANO_PID)..."
+        kill "$CARDANO_PID" 2>/dev/null || true
+    fi
+    
+    # Wait for all background processes
+    wait
+    log_info "Shutdown complete"
+}
+
+# Monitor processes
+monitor_processes() {
+    log_info "Monitoring both processes..."
+    
+    local last_status_time=$SECONDS
+    
+    while true; do
+        # Check cardano-node
+        if ! is_process_running "$CARDANO_PID"; then
+            log_error "cardano-node process died unexpectedly"
+            return 1
+        fi
+        
+        # Check PaylKoyn.Sync
+        if ! is_process_running "$SYNC_PID"; then
+            log_error "PaylKoyn.Sync process died unexpectedly"
+            return 1
+        fi
+        
+        # Status report
+        local current_time=$SECONDS
+        if [ $((current_time - last_status_time)) -ge $STATUS_REPORT_INTERVAL ]; then
+            log_info "Status: Both processes running (cardano-node: $CARDANO_PID, sync: $SYNC_PID)"
+            last_status_time=$current_time
+        fi
+        
+        sleep $PROCESS_CHECK_INTERVAL
+    done
+}
+
+# ===== MAIN EXECUTION =====
+
+# Set up signal handlers early
 trap cleanup EXIT SIGTERM SIGINT
 
+# Initialize
+setup_environment
+
+# Start cardano-node
+start_cardano_node
+
+# Wait for cardano-node to be ready
+wait_for_cardano_ready
+
+# Validate sync environment
+validate_sync_environment
+
+# Start PaylKoyn.Sync
+start_paylkoyn_sync
+
 # Monitor both processes
-echo "Monitoring both processes..."
-while true; do
-    # Check cardano-node
-    if ! kill -0 $CARDANO_PID 2>/dev/null; then
-        echo "ERROR: cardano-node process died unexpectedly"
-        kill $SYNC_PID 2>/dev/null || true
-        exit 1
-    fi
-    
-    # Check PaylKoyn.Sync
-    if ! kill -0 $SYNC_PID 2>/dev/null; then
-        echo "ERROR: PaylKoyn.Sync process died unexpectedly"
-        kill $CARDANO_PID 2>/dev/null || true
-        exit 1
-    fi
-    
-    # Brief status every 30 seconds
-    if [ $((SECONDS % 30)) -eq 0 ]; then
-        echo "Status: Both processes running (cardano-node: $CARDANO_PID, sync: $SYNC_PID)"
-    fi
-    
-    sleep 5
-done
+monitor_processes
+
+# If monitoring returns, it means a process died
+exit 1
