@@ -37,9 +37,12 @@ else
     MAX_SOCKET_WAIT=300  # 5 minutes timeout for restart
 fi
 
-# Wait for socket creation with timeout
+# Wait for socket creation with smart timeout
 echo "Waiting for cardano-node socket at ${CARDANO_SOCKET_PATH:-/ipc/node.socket}..."
-SOCKET_WAIT=0
+TOTAL_WAIT=0
+SOCKET_TIMEOUT_STARTED=false
+SOCKET_TIMEOUT_WAIT=0
+SOCKET_TIMEOUT_MAX=600  # 10 minutes after chunk validation completes
 
 while [ ! -S "${CARDANO_SOCKET_PATH:-/ipc/node.socket}" ]; do
     # Check if cardano-node is still running
@@ -47,17 +50,57 @@ while [ ! -S "${CARDANO_SOCKET_PATH:-/ipc/node.socket}" ]; do
         handle_error "cardano-node process died before creating socket"
     fi
     
-    SOCKET_WAIT=$((SOCKET_WAIT + 1))
-    if [ $SOCKET_WAIT -ge $MAX_SOCKET_WAIT ]; then
-        handle_error "Timeout waiting for cardano-node socket after ${MAX_SOCKET_WAIT} seconds"
+    TOTAL_WAIT=$((TOTAL_WAIT + 1))
+    
+    # Check if chunk validation is complete (100%)
+    if [ "$SOCKET_TIMEOUT_STARTED" = false ]; then
+        # Try to capture cardano-node output - check multiple possible sources
+        NODE_OUTPUT=""
+        if command -v journalctl >/dev/null 2>&1; then
+            NODE_OUTPUT=$(journalctl -u cardano-node --since "10 seconds ago" 2>/dev/null || true)
+        fi
+        if [ -z "$NODE_OUTPUT" ] && command -v docker >/dev/null 2>&1; then
+            NODE_OUTPUT=$(docker logs cardano-node --tail 20 2>/dev/null || true)
+        fi
+        if [ -z "$NODE_OUTPUT" ]; then
+            NODE_OUTPUT=$(tail -n 20 /proc/$CARDANO_PID/fd/1 2>/dev/null || true)
+        fi
+        
+        # Check for chunk validation progress
+        if echo "$NODE_OUTPUT" | grep -q "Validating chunk\|Validated chunk"; then
+            # Extract progress percentage if available
+            PROGRESS=$(echo "$NODE_OUTPUT" | grep -oE "Progress: [0-9]+\.[0-9]+%" | tail -1 | grep -oE "[0-9]+\.[0-9]+" || true)
+            if [ ! -z "$PROGRESS" ]; then
+                echo "Chunk validation progress: ${PROGRESS}%"
+                # Check if validation is complete
+                if (( $(echo "$PROGRESS >= 99.9" | bc -l 2>/dev/null || echo "0") )); then
+                    echo "Chunk validation complete! Starting socket timeout..."
+                    SOCKET_TIMEOUT_STARTED=true
+                fi
+            fi
+        elif echo "$NODE_OUTPUT" | grep -q "Chain extended, new tip"; then
+            # If we see chain tips being processed, validation is likely complete
+            echo "Chain sync detected - starting socket timeout..."
+            SOCKET_TIMEOUT_STARTED=true
+        fi
+    else
+        # Socket timeout has started, count down
+        SOCKET_TIMEOUT_WAIT=$((SOCKET_TIMEOUT_WAIT + 1))
+        if [ $SOCKET_TIMEOUT_WAIT -ge $SOCKET_TIMEOUT_MAX ]; then
+            handle_error "Timeout waiting for cardano-node socket after chunk validation completed (${SOCKET_TIMEOUT_MAX} seconds)"
+        fi
     fi
     
-    if [ $((SOCKET_WAIT % 30)) -eq 0 ] && [ $SOCKET_WAIT -gt 0 ]; then
-        MINUTES=$((SOCKET_WAIT / 60))
-        SECONDS=$((SOCKET_WAIT % 60))
-        echo "Still waiting for cardano-node initialization... (${MINUTES}m ${SECONDS}s elapsed)"
-        if [ $MAX_SOCKET_WAIT -eq 3600 ]; then
-            echo "  Note: First run with Mithril snapshot download can take 20-30 minutes"
+    # Status updates
+    if [ $((TOTAL_WAIT % 30)) -eq 0 ] && [ $TOTAL_WAIT -gt 0 ]; then
+        MINUTES=$((TOTAL_WAIT / 60))
+        SECONDS=$((TOTAL_WAIT % 60))
+        echo "Still waiting for cardano-node... (${MINUTES}m ${SECONDS}s elapsed)"
+        if [ "$SOCKET_TIMEOUT_STARTED" = false ]; then
+            echo "  Note: Waiting for chunk validation to complete (no timeout until 100%)"
+        else
+            REMAINING=$((SOCKET_TIMEOUT_MAX - SOCKET_TIMEOUT_WAIT))
+            echo "  Note: Chunk validation complete, waiting for socket (timeout in ${REMAINING}s)"
         fi
     fi
     
