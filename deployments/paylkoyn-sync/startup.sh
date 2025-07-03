@@ -12,25 +12,29 @@ die() {
 # Set permissions if needed
 [ -d "/data" ] && chown -R $(id -u):$(id -g) /data 2>/dev/null || true
 
-# Start cardano-node
+# Start cardano-node (in foreground to see output)
 echo "Starting cardano-node..."
 /usr/local/bin/entrypoint "$@" &
 CARDANO_PID=$!
 
-# Wait for socket to be ready
-echo "Waiting for cardano-node socket..."
-while true; do
+# Wait for socket file to exist
+SOCKET_PATH="${CARDANO_SOCKET_PATH:-/ipc/node.socket}"
+echo "Waiting for cardano-node socket at $SOCKET_PATH..."
+WAIT_COUNT=0
+while [ ! -S "$SOCKET_PATH" ]; do
     # Check if cardano-node is still running
     kill -0 $CARDANO_PID 2>/dev/null || die "cardano-node died"
     
-    # Check if socket is ready by looking at recent output
-    if tail -n 50 /proc/$CARDANO_PID/fd/1 2>/dev/null | grep -q "LocalSocketUp.*${CARDANO_SOCKET_PATH:-/ipc/node.socket}\|TrServerStarted.*LocalAddress.*${CARDANO_SOCKET_PATH:-/ipc/node.socket}"; then
-        echo "Socket is ready!"
-        break
+    WAIT_COUNT=$((WAIT_COUNT + 1))
+    if [ $((WAIT_COUNT % 30)) -eq 0 ]; then
+        echo "Still waiting for socket... (${WAIT_COUNT}s elapsed)"
     fi
     
     sleep 1
 done
+
+echo "Socket file exists, giving cardano-node a moment to be ready..."
+sleep 5
 
 # Start PaylKoyn.Sync
 echo "Starting PaylKoyn.Sync..."
